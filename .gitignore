@@ -1,0 +1,37 @@
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# OS metadata
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Environment variables & secrets
+.env
+*.env
+.streamlit/secrets.toml
+
+# IDE & Editor configs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temporary files and logs
+*.log
+scratch/
+.pytest_cache/
+data/*_preview.html
