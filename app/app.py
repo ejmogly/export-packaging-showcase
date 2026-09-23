@@ -15,15 +15,24 @@ DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+import streamlit.components.v1 as components
 import importlib
 import src.ingestion.loader
 import src.transformation.silver_pipeline
 import src.analytics.gold_pipeline
+import src.analytics.lineage_visualizer
 
 # Force reload for long-running dev servers
 importlib.reload(src.ingestion.loader)
 importlib.reload(src.transformation.silver_pipeline)
 importlib.reload(src.analytics.gold_pipeline)
+importlib.reload(src.analytics.lineage_visualizer)
+
+from src.analytics.lineage_visualizer import (
+    build_lineage_dataset,
+    render_interactive_lineage_studio_html,
+    build_value_chain_sankey
+)
 
 from src.ingestion.loader import (
     load_item_master,
@@ -2457,67 +2466,31 @@ with tab3:
         base_sc_df = silver_df.copy() if use_full_history_t3 else filtered_silver.copy()
 
         if not base_sc_df.empty:
-            # 1. Sankey Diagram
-            st.markdown("##### 🌊 3단계 공급망 밸류체인 흐름 (Sankey Flow)")
-            st.caption("좌측(바이어) ➔ 중앙(식품 제조사) ➔ 우측(제품 카테고리)으로 이어지는 스티커 부착 작업량 흐름의 굵기입니다.")
-
-            # Top 7 Buyers, Top 6 Mfg (크로스 매트릭스와 6대 핵심 제조사 일치), Top 5 Categories
+            # 1. Sankey Diagram (Upgraded Multi-Stage Value Chain Flow)
+            sc_head1, sc_head2, sc_head3 = st.columns([1.5, 1, 0.7])
+            with sc_head1:
+                st.markdown("##### 🌊 3단계 공급망 밸류체인 생키 플로우 (Sankey Value Chain)")
+                st.caption("좌측(바이어) ➔ 중앙(식품 제조사) ➔ 우측(제품 카테고리)으로 이어지는 스티커 작업량 흐름입니다.")
+            
             top_s_buyers = base_sc_df.groupby("buyer_normalized")["sticker_qty"].sum().nlargest(7).index.tolist()
-            top_s_mfgs = base_sc_df.groupby("manufacturer")["sticker_qty"].sum().nlargest(6).index.tolist()
-            top_s_cats = base_sc_df.groupby("category_2")["sticker_qty"].sum().nlargest(5).index.tolist()
-
-            df_sankey = base_sc_df.copy()
-            df_sankey["b_node"] = df_sankey["buyer_normalized"].apply(lambda x: f"바이어: {x}" if x in top_s_buyers else "바이어: 기타 거래처")
-            df_sankey["m_node"] = df_sankey["manufacturer"].apply(lambda x: f"제조: {x}" if x in top_s_mfgs else "제조: 기타 제조사")
-            df_sankey["c_node"] = df_sankey["category_2"].apply(lambda x: f"품목군: {x}" if x in top_s_cats else "품목군: 기타 카테고리")
-
-            flow1 = df_sankey.groupby(["b_node", "m_node"])["sticker_qty"].sum().reset_index()
-            flow1.columns = ["source", "target", "value"]
-
-            flow2 = df_sankey.groupby(["m_node", "c_node"])["sticker_qty"].sum().reset_index()
-            flow2.columns = ["source", "target", "value"]
-
-            buyer_nodes = sorted(df_sankey["b_node"].unique().tolist())
-            mfg_nodes = sorted(df_sankey["m_node"].unique().tolist())
-            cat_nodes = sorted(df_sankey["c_node"].unique().tolist())
-
-            all_nodes = buyer_nodes + mfg_nodes + cat_nodes
-            node_map = {n: i for i, n in enumerate(all_nodes)}
-
-            # Color coding nodes
-            node_colors = []
-            for n in all_nodes:
-                if n.startswith("바이어"):
-                    node_colors.append("#3b82f6")  # Blue
-                elif n.startswith("제조"):
-                    node_colors.append("#10b981")  # Emerald Green
-                else:
-                    node_colors.append("#8b5cf6")  # Purple
-
-            sankey_fig = go.Figure(data=[go.Sankey(
-                arrangement="snap",
-                node=dict(
-                    pad=15,
-                    thickness=22,
-                    line=dict(color="#cbd5e1", width=0.5),
-                    label=all_nodes,
-                    color=node_colors,
-                    hovertemplate="<b>%{label}</b><br>총 물량: <b>%{value:,.0f} 매</b><extra></extra>"
-                ),
-                link=dict(
-                    source=[node_map[s] for s in flow1["source"]] + [node_map[s] for s in flow2["source"]],
-                    target=[node_map[t] for t in flow1["target"]] + [node_map[t] for t in flow2["target"]],
-                    value=flow1["value"].tolist() + flow2["value"].tolist(),
-                    color="rgba(203, 213, 225, 0.45)",
-                    hovertemplate="<b>%{source.label}</b> ➔ <b>%{target.label}</b><br>작업량: <b>%{value:,.0f} 매</b><extra></extra>"
+            with sc_head2:
+                focus_buyer_opt = st.selectbox(
+                    "🎯 바이어 집중 분석 (Focus Buyer)",
+                    options=["전체 공급망 종합 흐름 (Overview)"] + top_s_buyers,
+                    key="t3_sankey_focus_buyer"
                 )
-            )])
+            with sc_head3:
+                isolate_opt = st.checkbox(
+                    "단독 격리 (Isolate)",
+                    value=False,
+                    key="t3_sankey_isolate",
+                    help="체크 시 선택한 바이어의 다운스트림 제조사/카테고리 공급망만 단독으로 격리하여 분석합니다."
+                )
 
-            sankey_fig.update_layout(
-                dragmode=False,
-                height=460,
-                margin=dict(l=10, r=10, t=20, b=20),
-                font=dict(family="Pretendard, -apple-system, sans-serif", size=11, color="#1e293b")
+            sankey_fig = build_value_chain_sankey(
+                base_sc_df,
+                focus_buyer=focus_buyer_opt,
+                isolate_buyer=isolate_opt
             )
             st.plotly_chart(sankey_fig, use_container_width=True, config=PLOTLY_STATIC_CONFIG)
 
@@ -3686,38 +3659,7 @@ with tab5:
         st.markdown("#### 🔀 품목 데이터 계보 및 통합 맵 (`Item Lineage & Consolidation Map`)")
         st.caption("현장 작업일지에서 수기 기입 편차(오타, 띄어쓰기, 영문 대소문자, 약어)로 분열되어 기록되던 원천 텍스트들이 표준 마스터 품목으로 어떻게 정규화·통합되었는지 시각적 계보를 추적합니다.")
 
-        lineage_df = silver_df.groupby(["item_name", "normalized_item_name"]).agg(
-            row_count=("work_date", "count"),
-            total_stickers=("sticker_qty", "sum"),
-            min_date=("work_date", "min"),
-            max_date=("work_date", "max"),
-            match_type=("match_type", "first")
-        ).reset_index()
-
-        def determine_reason(raw, norm, m_type):
-            if raw == norm:
-                return "표준 일치 (Exact)"
-            elif raw.lower() == norm.lower():
-                return "대소문자 통일 (Case Normalization)"
-            elif raw.replace(" ", "") == norm.replace(" ", ""):
-                return "띄어쓰기 정규화 (Whitespace Trim)"
-            elif any(t in raw for t in ["화이트화임", "연얀갱", "쿠쿠다스", "톰", "탕콩", "카드타드", "엔젤큐러슈", "뻬빼로", "뺴빼로"]):
-                return "수기/OCR 오타 교정 (Typo Correction)"
-            elif any(k in raw for k in ["6봉", "12봉", "4P", "6P", "8P", "12P", "2P", "번들", "환"]):
-                return "규격/수식어 통합 (Spec Consolidation)"
-            elif raw in ["홈", "롯"]:
-                return "파편 단어 복원 (Fragment Recovery)"
-            elif "캐)" in raw:
-                return "접두사 정규화 (Prefix Strip)"
-            else:
-                return "별칭 사전 매핑 (Alias Mapped)"
-
-        lineage_df["consolidation_reason"] = lineage_df.apply(
-            lambda r: determine_reason(r["item_name"], r["normalized_item_name"], r["match_type"]), axis=1
-        )
-
-        variant_counts = lineage_df.groupby("normalized_item_name")["item_name"].nunique()
-        multi_variant_items = variant_counts[variant_counts > 1].sort_values(ascending=False)
+        lineage_df, multi_variant_items, items_catalog = build_lineage_dataset(silver_df, df_dim_item)
 
         tot_variants = len(lineage_df[lineage_df["item_name"] != lineage_df["normalized_item_name"]])
         tot_canon_multi = len(multi_variant_items)
@@ -3772,15 +3714,35 @@ with tab5:
         st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
 
         # ---------------------------------------------------------
-        # 1. Product Selection & Overview Card
+        # 1. Quick Filters & Item Selector
         # ---------------------------------------------------------
-        insp_col1, insp_col2 = st.columns([1, 2])
-        with insp_col1:
-            dropdown_options = list(multi_variant_items.index) + [i for i in sorted(variant_counts.index) if i not in multi_variant_items.index]
-            default_idx = dropdown_options.index("The빠새") if "The빠새" in dropdown_options else 0
+        f_col1, f_col2 = st.columns([1, 1])
+        with f_col1:
+            lineage_filter = st.radio(
+                "🎯 분석 품목군 빠른 필터",
+                ["전체 다중 표기군 (187개)", "🔥 3종 이상 분열군 (17개)", "🚨 오타 교정군 (10개)", "⚠️ 띄어쓰기 편차군 (150개)"],
+                horizontal=True,
+                key="lineage_quick_filter"
+            )
+
+        if "3종 이상" in lineage_filter:
+            cand_items = variant_counts[variant_counts >= 3].index.tolist()
+        elif "오타 교정" in lineage_filter:
+            cand_items = lineage_df[lineage_df["consolidation_reason"].str.contains("오타")]["normalized_item_name"].unique().tolist()
+        elif "띄어쓰기" in lineage_filter:
+            cand_items = lineage_df[lineage_df["consolidation_reason"].str.contains("띄어쓰기")]["normalized_item_name"].unique().tolist()
+        else:
+            cand_items = list(multi_variant_items.index)
+
+        if not cand_items:
+            cand_items = list(multi_variant_items.index)
+
+        default_idx = cand_items.index("The빠새") if "The빠새" in cand_items else 0
+
+        with f_col2:
             sel_insp_item = st.selectbox(
                 "🔎 계보를 추적할 표준 품목 선택",
-                options=dropdown_options,
+                options=cand_items,
                 index=default_idx,
                 key="sel_insp_item"
             )
@@ -3793,118 +3755,50 @@ with tab5:
             cat_full = f"{m_row.get('category_1', '-') } > {m_row.get('category_2', '-')}"
             std_vol = m_row.get("standard_volume", "-")
             pack_q = m_row.get("default_pack_qty", 16)
+            b_speed = m_row.get("benchmark_speed_hr", 450.0)
         else:
-            sku_code, mfg_name, cat_full, std_vol, pack_q = "-", "-", "-", "-", 16
+            sku_code, mfg_name, cat_full, std_vol, pack_q, b_speed = "-", "-", "-", "-", 16, 450.0
 
         item_lineage = lineage_df[lineage_df["normalized_item_name"] == sel_insp_item].copy()
         item_total_stk = item_lineage["total_stickers"].sum()
         item_total_rows = item_lineage["row_count"].sum()
 
-        with insp_col2:
-            st.markdown(f"""
-            <div style="background-color:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 18px; display:flex; justify-content:space-between; align-items:center; margin-top:28px;">
-                <div>
-                    <span class="badge badge-neutral" style="font-weight:700;">{sku_code}</span>
-                    <strong style="font-size:16px; color:#0f172a; margin-left:8px;">{sel_insp_item}</strong>
-                    <div style="font-size:12px; color:#64748b; margin-top:4px;">제조사: {mfg_name} · 분류: {cat_full} · 규격: {std_vol} · 기본입수량: {pack_q}개/박스</div>
-                </div>
-                <div style="text-align:right;">
-                    <div style="font-size:12px; color:#64748b;">통합 표기 <strong>{len(item_lineage)}종</strong> · 총 실적 <strong>{item_total_rows:,}건</strong></div>
-                    <div style="font-size:18px; font-weight:700; color:#2563eb;">{item_total_stk:,.0f} <span style="font-size:12px;">매</span></div>
-                </div>
+        st.markdown(f"""
+        <div style="background-color:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; margin-top:8px; margin-bottom:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div>
+                <span class="badge badge-neutral" style="font-weight:700; font-size:13px;">{sku_code}</span>
+                <strong style="font-size:18px; color:#0f172a; margin-left:8px;">{sel_insp_item}</strong>
+                <div style="font-size:13px; color:#64748b; margin-top:4px;">제조사: <strong>{mfg_name}</strong> · 분류: <strong>{cat_full}</strong> · 표준규격: <strong>{std_vol}</strong> · 기본입수량: <strong>{pack_q}개/박스</strong> · 기준속도: <strong>{b_speed}매/h</strong></div>
             </div>
-            """, unsafe_allow_html=True)
-
-        st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
+            <div style="text-align:right;">
+                <div style="font-size:13px; color:#64748b;">수기 표기 <strong>{len(item_lineage)}종</strong> 수렴 · 총 실적 <strong>{item_total_rows:,}건</strong></div>
+                <div style="font-size:22px; font-weight:800; color:#2563eb;">{item_total_stk:,.0f} <span style="font-size:14px; font-weight:600;">매</span></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         # ---------------------------------------------------------
-        # 2. Interactive Sankey Diagram with Focus Mode
+        # 2. Visual Architecture & Sankey Switcher
         # ---------------------------------------------------------
-        sankey_head_col, mode_col = st.columns([2, 1])
+        sankey_head_col, mode_col = st.columns([1.5, 1.5])
         with sankey_head_col:
-            st.markdown("##### 🌊 인터랙티브 데이터 계보 생키 다이어그램 (Sankey Flow)")
-            st.caption("수기 기입 편차가 어떤 통합 규칙을 거쳐 최종 표준 품목으로 수렴하는지 인터랙티브하게 확인하세요.")
+            st.markdown("##### 🌊 품목 통합 계보 다이어그램 (Lineage Architecture)")
         with mode_col:
-            sankey_mode = st.radio(
-                "다이어그램 모드",
-                ["🎯 선택 품목 집중 계보 (권장)", "🌐 다중 표기 Top 10 전체 흐름"],
+            viz_mode = st.radio(
+                "시각화 모드",
+                ["✨ 인터랙티브 네온 계보 스튜디오 (Interactive Studio)", "🌊 다크모드 정밀 생키 다이어그램 (Plotly Full-Scale)", "📋 187개 다중 표기군 전수 통합 매트릭스"],
                 horizontal=True,
-                key="sankey_view_mode"
+                key="viz_lineage_mode"
             )
 
-        if "선택 품목 집중" in sankey_mode:
-            raw_nodes = item_lineage["item_name"].tolist()
-            rule_nodes = list(dict.fromkeys(item_lineage["consolidation_reason"].tolist()))
-            target_node = [f"[{sku_code}] {sel_insp_item}"]
+        if "인터랙티브 네온 계보" in viz_mode:
+            studio_html = render_interactive_lineage_studio_html(items_catalog, initial_focus=sel_insp_item)
+            components.html(studio_html, height=720, scrolling=False)
 
-            all_nodes = raw_nodes + rule_nodes + target_node
-            node_map = {n: i for i, n in enumerate(all_nodes)}
-
-            def get_rule_color(r_name):
-                if "오타" in r_name:
-                    return "#e11d48", "rgba(225, 29, 72, 0.55)"
-                elif "띄어쓰기" in r_name:
-                    return "#d97706", "rgba(217, 119, 6, 0.55)"
-                elif "대소문자" in r_name:
-                    return "#0284c7", "rgba(2, 132, 199, 0.55)"
-                elif "표준 일치" in r_name:
-                    return "#059669", "rgba(5, 150, 105, 0.55)"
-                else:
-                    return "#7c3aed", "rgba(124, 58, 237, 0.55)"
-
-            node_colors = []
-            for n in all_nodes:
-                if n in raw_nodes:
-                    r_type = item_lineage[item_lineage["item_name"] == n]["consolidation_reason"].iloc[0]
-                    solid_c, _ = get_rule_color(r_type)
-                    node_colors.append(solid_c)
-                elif n in rule_nodes:
-                    node_colors.append("#64748b")
-                else:
-                    node_colors.append("#1d4ed8")
-
-            srcs, tgts, vals, link_colors = [], [], [], []
-            for _, r in item_lineage.iterrows():
-                srcs.append(node_map[r["item_name"]])
-                tgts.append(node_map[r["consolidation_reason"]])
-                vals.append(r["total_stickers"])
-                _, rgba_c = get_rule_color(r["consolidation_reason"])
-                link_colors.append(rgba_c)
-
-            for rule in rule_nodes:
-                rule_vol = item_lineage[item_lineage["consolidation_reason"] == rule]["total_stickers"].sum()
-                srcs.append(node_map[rule])
-                tgts.append(node_map[target_node[0]])
-                vals.append(rule_vol)
-                _, rgba_c = get_rule_color(rule)
-                link_colors.append(rgba_c)
-
-            fig_sankey = go.Figure(data=[go.Sankey(
-                node=dict(
-                    pad=24,
-                    thickness=24,
-                    line=dict(color="#cbd5e1", width=0.5),
-                    label=all_nodes,
-                    color=node_colors,
-                    hovertemplate="노드: <b>%{label}</b><br>총 물량: <b>%{value:,.0f} 매</b><extra></extra>"
-                ),
-                link=dict(
-                    source=srcs,
-                    target=tgts,
-                    value=vals,
-                    color=link_colors,
-                    hovertemplate="계보: <b>%{source.label}</b> ➔ <b>%{target.label}</b><br>통합 스티커 수량: <b>%{value:,.0f} 매</b><extra></extra>"
-                )
-            )])
-            fig_sankey.update_layout(
-                margin=dict(l=10, r=10, t=15, b=15),
-                height=340,
-                font=dict(family="Pretendard, -apple-system, sans-serif", size=12, color="#1e293b")
-            )
-            st.plotly_chart(fig_sankey, use_container_width=True)
-
-        else:
+        elif "다크모드 정밀 생키" in viz_mode:
             top_10_canons = multi_variant_items.head(10).index.tolist()
+            if sel_insp_item not in top_10_canons:
+                top_10_canons.append(sel_insp_item)
             sankey_subset = lineage_df[lineage_df["normalized_item_name"].isin(top_10_canons)].copy()
 
             raw_nodes = sankey_subset["item_name"].unique().tolist()
@@ -3919,27 +3813,27 @@ with tab5:
             vals = links["total_stickers"].tolist()
 
             link_colors = []
-            node_colors = []
             for _, r in links.iterrows():
                 if r["normalized_item_name"] == sel_insp_item:
-                    link_colors.append("rgba(37, 99, 235, 0.8)")
+                    link_colors.append("rgba(56, 189, 248, 0.9)")
                 else:
-                    link_colors.append("rgba(203, 213, 225, 0.35)")
+                    link_colors.append("rgba(148, 163, 184, 0.18)")
 
+            node_colors = []
             for n in all_nodes:
                 if n == sel_insp_item:
-                    node_colors.append("#1d4ed8")
+                    node_colors.append("#38bdf8")
                 elif n in raw_nodes:
                     is_sel_raw = not sankey_subset[(sankey_subset["item_name"] == n) & (sankey_subset["normalized_item_name"] == sel_insp_item)].empty
-                    node_colors.append("#2563eb" if is_sel_raw else "#94a3b8")
+                    node_colors.append("#0284c7" if is_sel_raw else "#475569")
                 else:
-                    node_colors.append("#64748b")
+                    node_colors.append("#334155")
 
             fig_sankey = go.Figure(data=[go.Sankey(
                 node=dict(
-                    pad=14,
-                    thickness=18,
-                    line=dict(color="#cbd5e1", width=0.5),
+                    pad=20,
+                    thickness=22,
+                    line=dict(color="#334155", width=1),
                     label=all_nodes,
                     color=node_colors,
                     hovertemplate="노드: <b>%{label}</b><br>총 물량: <b>%{value:,.0f} 매</b><extra></extra>"
@@ -3953,11 +3847,24 @@ with tab5:
                 )
             )])
             fig_sankey.update_layout(
-                margin=dict(l=10, r=10, t=15, b=15),
-                height=420,
-                font=dict(family="Pretendard, -apple-system, sans-serif", size=11, color="#334155")
+                paper_bgcolor="#0f172a",
+                plot_bgcolor="#0f172a",
+                margin=dict(l=20, r=20, t=25, b=25),
+                height=460,
+                font=dict(family="Pretendard, -apple-system, sans-serif", size=12, color="#f8fafc")
             )
             st.plotly_chart(fig_sankey, use_container_width=True)
+
+        else:
+            st.markdown("##### 📋 187개 다중 표기 품목군 전수 통합 매트릭스")
+            summary_lineage = lineage_df[lineage_df["item_name"] != lineage_df["normalized_item_name"]].copy()
+            disp_all = summary_lineage[[
+                "item_name", "normalized_item_name", "consolidation_reason", "row_count", "total_stickers", "min_date", "max_date"
+            ]].copy()
+            disp_all.columns = [
+                "원천 수기 기입명", "공식 표준 마스터명", "적용된 정규화 규칙", "발생 건수", "작업 수량(매)", "최초 발생일", "최근 발생일"
+            ]
+            st.dataframe(disp_all, use_container_width=True, hide_index=True)
 
         st.markdown("<div style='margin-bottom: 24px;'></div>", unsafe_allow_html=True)
 
