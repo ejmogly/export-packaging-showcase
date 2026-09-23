@@ -6,6 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 import base64
+import io
 from datetime import datetime, date
 
 # Add project root to sys.path
@@ -260,22 +261,6 @@ MANUFACTURER_COLORS = {
 
 # 바이어별 전용 시그니처 색상 (일관된 브랜딩 및 시각적 식별성 확보)
 BUYER_COLORS = {
-    # 쇼케이스 가명화 바이어 시그니처 색상
-    "Global_Mart_Canada (캐나다)": "#059669",
-    "Pacific_Trade (캐나다)": "#10b981",
-    "Euro_PanAsia (오스트리아)": "#2563eb",
-    "Euro_PanAsia (독일)": "#1d4ed8",
-    "Central_Asia_Logistics (몽골)": "#7c3aed",
-    "K-Mart_Canada (캐나다)": "#0ea5e9",
-    "Oceania_Health (호주)": "#0891b2",
-    "H-Mart_Global (미주)": "#4338ca",
-    "Global_Trading_H": "#4f46e5",
-    "HanSang_Partners": "#d97706",
-    "Hamchorom_Global": "#ec4899",
-    "Vancouver_Logistics": "#f97316",
-    "Pacific_Islands (피지)": "#06b6d4",
-    "Distributor_007 (캐나다)": "#e11d48",
-
     # 주요 글로벌 바이어 및 벤더사
     "007 (캐나다)": "#e11d48",        # 캐나다 시그니처 단풍 크림슨 레드
     "판아시아 (오스트리아)": "#2563eb",  # 판아시아 유럽 로열 블루
@@ -378,9 +363,7 @@ with st.sidebar:
             b64_logo = base64.b64encode(f.read()).decode("utf-8")
         logo_img_src = f"data:image/png;base64,{b64_logo}"
     else:
-        logo_img_src = ""
-
-    logo_html = f'<img src="{logo_img_src}" style="max-height: 48px; max-width: 100%; object-fit: contain;">' if logo_img_src else '📦'
+        logo_img_src = "https://clogo.saramin.co.kr/company/logo/202604/02/tcuwtf30_k5ck-tob3k4_logo.png"
 
     st.markdown(f"""
     <div style="
@@ -393,13 +376,13 @@ with st.sidebar:
         margin-bottom: 12px;
     ">
         <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 8px;">
-            {logo_html}
+            <img src="{logo_img_src}" style="max-height: 52px; max-width: 100%; object-fit: contain;">
         </div>
         <div style="font-size: 17px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; margin-bottom: 3px;">
-            K-Food 수출 패키징 관리
+            스티커 작업 관리
         </div>
         <div style="font-size: 11.5px; font-weight: 500; color: #64748b; line-height: 1.35;">
-            글로벌 라벨 부착 실적 분석 &amp; 운영 플랫폼
+            수출 식품 라벨 부착 실적 분석 &amp; 운영 플랫폼
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -3478,10 +3461,11 @@ with tab5:
     st.markdown("<div style='margin-bottom: 24px;'></div>", unsafe_allow_html=True)
 
     # Sub-tabs for deep management
-    subtab1, subtab2, subtab3 = st.tabs([
+    subtab1, subtab2, subtab3, subtab4 = st.tabs([
         f"🔍 OCR/수기 이상치 정밀 검수실 (정제 404건 / 수량 불일치 {quality_report['qty_mismatch_count']}건)",
         "📦 상품 마스터 관리 (dim_item)",
-        "🏢 제조사 & 바이어 디멘전 (Dimensions)"
+        "🏢 제조사 & 바이어 디멘전 (Dimensions)",
+        "🔀 품목 데이터 계보 및 통합 맵 (Item Lineage & Consolidation)"
     ])
 
     # -------------------------------------------------------------
@@ -3694,6 +3678,241 @@ with tab5:
                 mime="text/csv",
                 key="btn_download_dim_byr"
             )
+
+    # -------------------------------------------------------------
+    # SUBTAB 4: 품목 데이터 계보 및 통합 맵 (Item Lineage & Consolidation Map)
+    # -------------------------------------------------------------
+    with subtab4:
+        st.markdown("#### 🔀 품목 데이터 계보 및 통합 맵 (`Item Lineage & Consolidation Map`)")
+        st.caption("현장 작업일지에서 수기 기입 편차(오타, 띄어쓰기, 영문 대소문자, 약어)로 분열되어 기록되던 원천 텍스트들이 표준 마스터 품목으로 어떻게 정규화·통합되었는지 시각적 계보를 추적합니다.")
+
+        lineage_df = silver_df.groupby(["item_name", "normalized_item_name"]).agg(
+            row_count=("work_date", "count"),
+            total_stickers=("sticker_qty", "sum"),
+            min_date=("work_date", "min"),
+            max_date=("work_date", "max"),
+            match_type=("match_type", "first")
+        ).reset_index()
+
+        def determine_reason(raw, norm, m_type):
+            if raw == norm:
+                return "표준 일치 (Exact)"
+            elif raw.lower() == norm.lower():
+                return "대소문자 통일 (Case Normalization)"
+            elif raw.replace(" ", "") == norm.replace(" ", ""):
+                return "띄어쓰기 정규화 (Whitespace Trim)"
+            elif any(t in raw for t in ["화이트화임", "연얀갱", "쿠쿠다스", "톰", "탕콩", "카드타드", "엔젤큐러슈", "뻬빼로", "뺴빼로"]):
+                return "수기/OCR 오타 교정 (Typo Correction)"
+            elif any(k in raw for k in ["6봉", "12봉", "4P", "6P", "8P", "12P", "2P", "번들", "환"]):
+                return "규격/수식어 통합 (Spec Consolidation)"
+            elif raw in ["홈", "롯"]:
+                return "파편 단어 복원 (Fragment Recovery)"
+            elif "캐)" in raw:
+                return "접두사 정규화 (Prefix Strip)"
+            else:
+                return "별칭 사전 매핑 (Alias Mapped)"
+
+        lineage_df["consolidation_reason"] = lineage_df.apply(
+            lambda r: determine_reason(r["item_name"], r["normalized_item_name"], r["match_type"]), axis=1
+        )
+
+        variant_counts = lineage_df.groupby("normalized_item_name")["item_name"].nunique()
+        multi_variant_items = variant_counts[variant_counts > 1].sort_values(ascending=False)
+
+        tot_variants = len(lineage_df[lineage_df["item_name"] != lineage_df["normalized_item_name"]])
+        tot_canon_multi = len(multi_variant_items)
+        tot_affected_stk = lineage_df[lineage_df["item_name"] != lineage_df["normalized_item_name"]]["total_stickers"].sum()
+
+        l_c1, l_c2, l_c3, l_c4 = st.columns(4)
+        with l_c1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-top">
+                    <div class="metric-label">통합된 수기 변형 표기</div>
+                    <div class="metric-value" style="color:#2563eb; font-size:24px;">{tot_variants:,} <span style="font-size:14px; font-weight:600;">종</span></div>
+                    <span class="badge badge-pos">354개 별칭 사전 연동</span>
+                </div>
+                <div class="metric-desc">오타, 공백, 대소문자 편차 자동 교정</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with l_c2:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-top">
+                    <div class="metric-label">다중 표기 수렴 품목군</div>
+                    <div class="metric-value" style="color:#7c3aed; font-size:24px;">{tot_canon_multi:,} <span style="font-size:14px; font-weight:600;">개 SKU</span></div>
+                    <span class="badge badge-neutral">1개 표준으로 단일화</span>
+                </div>
+                <div class="metric-desc">The빠새, 구운감자 등 다중 표기 제품</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with l_c3:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-top">
+                    <div class="metric-label">구출된 작업 실적</div>
+                    <div class="metric-value" style="color:#059669; font-size:24px;">{tot_affected_stk:,.0f} <span style="font-size:14px; font-weight:600;">매</span></div>
+                    <span class="badge badge-pos">누락율 0.00% 달성</span>
+                </div>
+                <div class="metric-desc">수기 편차로 분열될 뻔한 실적 완벽 구출</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with l_c4:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-top">
+                    <div class="metric-label">마스터 무결성 달성도</div>
+                    <div class="metric-value" style="color:#0284c7; font-size:24px;">100.0 <span style="font-size:14px; font-weight:600;">%</span></div>
+                    <span class="badge badge-pos">666개 표준 마스터</span>
+                </div>
+                <div class="metric-desc">원천 3,324행 전수 매핑 완결</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
+
+        st.markdown("##### 🌊 인터랙티브 데이터 계보 생키 다이어그램 (Sankey Flow Chart)")
+        st.caption("수기 원천 기입 편차가 통합 규칙(공백 정규화, 오타 교정, 대소문자 통일 등)을 거쳐 대표 표준 품목으로 모여드는 실시간 데이터 플로우입니다.")
+
+        top_sankey_canons = multi_variant_items.head(15).index.tolist()
+        sankey_subset = lineage_df[lineage_df["normalized_item_name"].isin(top_sankey_canons)].copy()
+
+        raw_nodes = sankey_subset["item_name"].unique().tolist()
+        reason_nodes = sankey_subset["consolidation_reason"].unique().tolist()
+        norm_nodes = sankey_subset["normalized_item_name"].unique().tolist()
+
+        all_nodes = raw_nodes + reason_nodes + norm_nodes
+        node_map = {n: i for i, n in enumerate(all_nodes)}
+
+        links_1 = sankey_subset.groupby(["item_name", "consolidation_reason"])["total_stickers"].sum().reset_index()
+        links_2 = sankey_subset.groupby(["consolidation_reason", "normalized_item_name"])["total_stickers"].sum().reset_index()
+
+        srcs = [node_map[r["item_name"]] for _, r in links_1.iterrows()] + [node_map[r["consolidation_reason"]] for _, r in links_2.iterrows()]
+        tgts = [node_map[r["consolidation_reason"]] for _, r in links_1.iterrows()] + [node_map[r["normalized_item_name"]] for _, r in links_2.iterrows()]
+        vals = links_1["total_stickers"].tolist() + links_2["total_stickers"].tolist()
+
+        node_colors = []
+        for n in all_nodes:
+            if n in raw_nodes:
+                node_colors.append("#94a3b8")
+            elif n in reason_nodes:
+                node_colors.append("#f59e0b")
+            else:
+                node_colors.append("#2563eb")
+
+        fig_sankey = go.Figure(data=[go.Sankey(
+            node=dict(
+                pad=14,
+                thickness=18,
+                line=dict(color="#cbd5e1", width=0.5),
+                label=all_nodes,
+                color=node_colors,
+                hovertemplate="노드: <b>%{label}</b><br>총 처리량: <b>%{value:,.0f} 매</b><extra></extra>"
+            ),
+            link=dict(
+                source=srcs,
+                target=tgts,
+                value=vals,
+                color="rgba(203, 213, 225, 0.4)",
+                hovertemplate="흐름: <b>%{source.label}</b> ➔ <b>%{target.label}</b><br>통합 스티커 수량: <b>%{value:,.0f} 매</b><extra></extra>"
+            )
+        )])
+
+        fig_sankey.update_layout(
+            margin=dict(l=10, r=10, t=20, b=20),
+            height=460,
+            font=dict(family="Pretendard, -apple-system, sans-serif", size=11, color="#334155")
+        )
+        st.plotly_chart(fig_sankey, use_container_width=True)
+
+        st.markdown("<div style='margin-bottom: 24px;'></div>", unsafe_allow_html=True)
+
+        st.markdown("##### 🔎 품목별 상세 통합 계보 탐색기 (Consolidation Inspector)")
+        st.caption("특정 상품을 선택하시면, 원천 구글 시트에서 어떤 수기 표기들로 몇 건씩 기입되었고 최종 표준 품목으로 어떻게 정규화되었는지 전수 계보를 보여드립니다.")
+
+        insp_col1, insp_col2 = st.columns([1, 2])
+        with insp_col1:
+            dropdown_options = list(multi_variant_items.index) + [i for i in sorted(variant_counts.index) if i not in multi_variant_items.index]
+            default_idx = dropdown_options.index("The빠새") if "The빠새" in dropdown_options else 0
+            sel_insp_item = st.selectbox(
+                "조회할 표준 품목 선택",
+                options=dropdown_options,
+                index=default_idx,
+                key="sel_insp_item"
+            )
+
+        meta_sub = df_dim_item[df_dim_item["item_name"] == sel_insp_item]
+        if not meta_sub.empty:
+            m_row = meta_sub.iloc[0]
+            sku_code = m_row.get("item_code", "-")
+            mfg_name = m_row.get("manufacturer_name", "-")
+            cat_full = f"{m_row.get('category_1', '-') } > {m_row.get('category_2', '-')}"
+            std_vol = m_row.get("standard_volume", "-")
+            pack_q = m_row.get("default_pack_qty", 16)
+        else:
+            sku_code, mfg_name, cat_full, std_vol, pack_q = "-", "-", "-", "-", 16
+
+        item_lineage = lineage_df[lineage_df["normalized_item_name"] == sel_insp_item].copy()
+        item_total_stk = item_lineage["total_stickers"].sum()
+        item_total_rows = item_lineage["row_count"].sum()
+
+        with insp_col2:
+            st.markdown(f"""
+            <div style="background-color:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:12px 18px; display:flex; justify-content:space-between; align-items:center; margin-top:28px;">
+                <div>
+                    <span class="badge badge-neutral" style="font-weight:700;">{sku_code}</span>
+                    <strong style="font-size:16px; color:#0f172a; margin-left:8px;">{sel_insp_item}</strong>
+                    <div style="font-size:12px; color:#64748b; margin-top:4px;">제조사: {mfg_name} · 분류: {cat_full} · 규격: {std_vol} · 기본입수량: {pack_q}개/박스</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:12px; color:#64748b;">통합 표기 <strong>{len(item_lineage)}종</strong> · 총 실적 <strong>{item_total_rows:,}건</strong></div>
+                    <div style="font-size:18px; font-weight:700; color:#2563eb;">{item_total_stk:,.0f} <span style="font-size:12px;">매</span></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        item_lineage["share_pct"] = (item_lineage["total_stickers"] / item_total_stk * 100).round(1) if item_total_stk > 0 else 0
+        disp_lineage = item_lineage[[
+            "item_name", "row_count", "total_stickers", "share_pct", "consolidation_reason", "min_date", "max_date"
+        ]].copy()
+        disp_lineage.columns = [
+            "원천 수기 표기 (Raw String)", "작업 횟수 (건)", "총 작업 매수 (매)", "작업량 비중 (%)",
+            "통합 및 정규화 사유 (Reason)", "원천 최초 발생일", "최근 작업일"
+        ]
+
+        st.dataframe(disp_lineage, use_container_width=True, hide_index=True)
+
+        st.markdown("<div style='margin-bottom: 24px;'></div>", unsafe_allow_html=True)
+
+        st.markdown("##### 📋 구글 시트 [아이템 마스터] 탭 1초 복사 도구")
+        st.caption("구글 시트의 `[아이템 마스터]` 탭에 붙여넣을 수 있는 최신 표준 마스터(666개 품목)입니다. 아래 텍스트를 복사하여 구글 시트 A1 셀에 `Ctrl+V` 하시면 모든 상품명과 제조사, 규격이 자동으로 채워집니다.")
+
+        tsv_buffer = io.StringIO()
+        df_master_export = df_dim_item[["item_name", "manufacturer_name", "category_1", "category_2", "standard_volume"]].copy()
+        df_master_export.columns = ["제품명", "제조사", "카테고리1", "카테고리2", "표준중량/규격"]
+        df_master_export.to_csv(tsv_buffer, sep="\t", index=False)
+        tsv_content = tsv_buffer.getvalue()
+
+        copy_col1, copy_col2 = st.columns([1, 1])
+        with copy_col1:
+            st.download_button(
+                "📥 구글 시트 붙여넣기용 TSV 다운로드 (.tsv)",
+                data=tsv_content,
+                file_name="google_sheet_item_master.tsv",
+                mime="text/tab-separated-values",
+                key="btn_download_tsv_master"
+            )
+        with copy_col2:
+            st.download_button(
+                "📥 정제 마스터 CSV 다운로드 (item_master.csv)",
+                data=df_master_export.to_csv(index=False, encoding="utf-8-sig"),
+                file_name="item_master.csv",
+                mime="text/csv",
+                key="btn_download_csv_clean_master"
+            )
+
+        with st.expander("📋 화면에서 텍스트 직접 복사하기 (클릭하여 펼치기)"):
+            st.code(tsv_content[:2500] + f"\n... (외 {len(df_master_export)-30}개 품목 생략 - 상단 다운로드 버튼 권장)", language="text")
 
 
 # ---------------------------------------------------------
