@@ -4440,10 +4440,42 @@ with tab6:
             df_col_dict = pd.DataFrame(col_dict_data, columns=["컬럼명 (Column)", "한글 레이블", "데이터 타입", "설명"])
             st.dataframe(df_col_dict, use_container_width=True, hide_index=True)
 
-        # Sample Data Preview
-        st.markdown("##### 👀 실제 데이터 미리보기 (Top 5 Samples)")
+        # Sample Data Preview with Custom Limit & Search
+        st.markdown("##### 👀 실제 데이터 미리보기 (Data Preview & Search)")
         if not target_df.empty:
-            st.dataframe(target_df.head(5), use_container_width=True, hide_index=True)
+            col_pv1, col_pv2 = st.columns([3, 1])
+            with col_pv1:
+                search_query = st.text_input(
+                    "🔍 테이블 내 실시간 검색 (키워드 입력 시 즉시 필터링)",
+                    placeholder="검색할 품목명, 제조사, 코드 등을 입력하세요...",
+                    key=f"cat_search_{selected_table_name}"
+                )
+            with col_pv2:
+                limit_option = st.selectbox(
+                    "표시 행 수",
+                    options=["상위 20개", "상위 50개", "상위 100개", "전체 보기"],
+                    index=1,
+                    key=f"cat_limit_{selected_table_name}"
+                )
+
+            # Apply Search Filter
+            preview_display_df = target_df.copy()
+            if search_query.strip():
+                q = search_query.strip().lower()
+                mask = preview_display_df.astype(str).apply(lambda row: row.str.lower().str.contains(q, na=False)).any(axis=1)
+                preview_display_df = preview_display_df[mask]
+
+            total_found = len(preview_display_df)
+            if limit_option == "상위 20개":
+                preview_display_df = preview_display_df.head(20)
+            elif limit_option == "상위 50개":
+                preview_display_df = preview_display_df.head(50)
+            elif limit_option == "상위 100개":
+                preview_display_df = preview_display_df.head(100)
+            # Else "전체 보기" keeps all rows
+
+            st.caption(f"📊 총 **{len(target_df):,}개 행** 중 **{total_found:,}건** 검색됨 (화면에 **{len(preview_display_df):,}건** 표시)")
+            st.dataframe(preview_display_df, use_container_width=True, hide_index=True)
             
             # Download CSV
             csv_target = target_df.to_csv(index=False, encoding="utf-8-sig")
