@@ -386,7 +386,9 @@ class ItemNormalizer:
         self,
         df: pd.DataFrame,
         item_col: str = "item_name",
-        pack_qty_col: Optional[str] = "pack_qty"
+        pack_qty_col: Optional[str] = "pack_qty",
+        *args,
+        **kwargs
     ) -> pd.DataFrame:
         """
         Normalizes an entire dataframe of items with optional pack_qty contextual disambiguation.

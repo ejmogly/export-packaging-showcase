@@ -157,7 +157,10 @@ def build_silver_layer() -> tuple[pd.DataFrame, dict, str]:
 
     # 2. Item Normalization with Multi-Layer Defense Buffers
     normalizer = ItemNormalizer(master_df=master_df, alias_df=alias_df)
-    normalized_df = normalizer.batch_normalize(df, item_col="item_name", pack_qty_col="pack_qty")
+    try:
+        normalized_df = normalizer.batch_normalize(df, item_col="item_name", pack_qty_col="pack_qty")
+    except TypeError:
+        normalized_df = normalizer.batch_normalize(df, item_col="item_name")
 
     # 3. Data Quality Audit
     silver_df, quality_summary = DataQualityValidator.audit_dataset(normalized_df)
