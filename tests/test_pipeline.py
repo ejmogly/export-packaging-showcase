@@ -55,9 +55,24 @@ class TestStickerPackagingAnalytics(unittest.TestCase):
         self.assertEqual(res_exact["normalized_item_name"], "초코파이")
         self.assertEqual(res_exact["manufacturer"], "오리온")
 
-        # 3. Fuzzy match test
-        res_fuzzy = normalizer.resolve_item("허니버터칩 60g")
-        self.assertTrue(res_fuzzy["match_confidence"] > 0.6)
+        # 3. Token-Sort Order Invariance test (콘스프 꼬북칩 -> 꼬북칩 콘스프)
+        res_ts = normalizer.resolve_item("콘스프 꼬북칩")
+        self.assertEqual(res_ts["match_type"], "TOKEN_SORT")
+        self.assertIn("꼬북", res_ts["normalized_item_name"])
+        self.assertIn("콘스프", res_ts["normalized_item_name"])
+
+        # 4. Packaging / Spec Stripping test
+        res_spec = normalizer.resolve_item("허니버터칩 60g")
+        self.assertTrue(res_spec["match_confidence"] > 0.8)
+        self.assertEqual(res_spec["normalized_item_name"], "허니버터칩")
+
+        # 5. Contextual pack_qty disambiguation test (홈런볼)
+        res_bulk = normalizer.resolve_item("홈런볼", pack_qty=12)
+        self.assertIn("벌크", res_bulk["normalized_item_name"])
+
+        res_single = normalizer.resolve_item("홈런볼", pack_qty=30)
+        self.assertFalse("벌크" in res_single["normalized_item_name"])
+        self.assertIn("홈런볼", res_single["normalized_item_name"])
 
     def test_03_data_quality_validator(self):
         """Test Data Quality quantity mismatch detection."""
