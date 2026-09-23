@@ -339,7 +339,7 @@ def get_buyer_color(buyer_name: str, index: int = 0) -> str:
 # 2. DATA CACHING & PIPELINE EXECUTION
 # =========================================================
 @st.cache_data(ttl=600)
-def get_processed_data(cache_bust_token: str = "v_20260923_live_3324"):
+def get_processed_data(cache_bust_token: str = "v_20260923_rebuilt_ground_truth_master"):
     """Runs the Medallion transformation and caches results."""
     silver_df, quality_report, source_status = build_silver_layer()
     daily_mart = GoldAnalyticsPipeline.build_daily_productivity_mart(silver_df)

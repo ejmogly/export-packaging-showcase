@@ -83,9 +83,15 @@ class ItemNormalizer:
 
                 # Index root keywords (e.g. "홈런볼", "에이스", "신라면", "초코파이")
                 root_key = self.clean_text(self.strip_spec_noise(std_name))
-                # Also split first word as base brand name
                 first_word = self.clean_text(std_name.split()[0]) if " " in std_name else cleaned_key
-                for rk in set([root_key, first_word]):
+                keys_to_index = {root_key, first_word}
+                
+                common_roots = ["홈런볼", "꼬북칩", "포카칩", "스윙칩", "초코파이", "오예스", "에이스", "버터링", "빼빼로", "쿠크다스", "마이쮸", "비타500", "밀키스", "후렌치파이", "카스타드", "신쫄이", "샌드에이스", "고향만두", "치토스", "꼬깔콘"]
+                for cr in common_roots:
+                    if std_name.startswith(cr):
+                        keys_to_index.add(self.clean_text(cr))
+
+                for rk in keys_to_index:
                     if rk and len(rk) >= 2:
                         if rk not in self.root_name_candidates:
                             self.root_name_candidates[rk] = []
@@ -157,11 +163,17 @@ class ItemNormalizer:
         return s.strip()
 
     def _find_best_variant_by_pack_qty(self, candidates: List[Dict[str, Any]], pack_qty: int) -> Optional[Dict[str, Any]]:
-        """Selects the candidate item whose default_pack_qty is closest to input pack_qty."""
+        """Selects the candidate item whose default_pack_qty is closest to input pack_qty, with flagship flavor tie-breaking."""
         if not candidates:
             return None
-        # Sort candidates by absolute distance to pack_qty
-        sorted_cands = sorted(candidates, key=lambda c: abs(c.get("default_pack_qty", 16) - pack_qty))
+        def sort_priority(c):
+            dist = abs(c.get("default_pack_qty", 16) - pack_qty)
+            name = c.get("standard_name", "")
+            is_flagship = any(f in name for f in ["초코", "오리지널", "벌크", "기본"])
+            flagship_rank = 0 if is_flagship else 1
+            return (dist, flagship_rank)
+
+        sorted_cands = sorted(candidates, key=sort_priority)
         return sorted_cands[0]
 
     def _match_token_coverage(self, raw_text: str) -> Optional[str]:
