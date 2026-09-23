@@ -3771,71 +3771,15 @@ with tab5:
 
         st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
 
-        st.markdown("##### 🌊 인터랙티브 데이터 계보 생키 다이어그램 (Sankey Flow Chart)")
-        st.caption("수기 원천 기입 편차가 통합 규칙(공백 정규화, 오타 교정, 대소문자 통일 등)을 거쳐 대표 표준 품목으로 모여드는 실시간 데이터 플로우입니다.")
-
-        top_sankey_canons = multi_variant_items.head(15).index.tolist()
-        sankey_subset = lineage_df[lineage_df["normalized_item_name"].isin(top_sankey_canons)].copy()
-
-        raw_nodes = sankey_subset["item_name"].unique().tolist()
-        reason_nodes = sankey_subset["consolidation_reason"].unique().tolist()
-        norm_nodes = sankey_subset["normalized_item_name"].unique().tolist()
-
-        all_nodes = raw_nodes + reason_nodes + norm_nodes
-        node_map = {n: i for i, n in enumerate(all_nodes)}
-
-        links_1 = sankey_subset.groupby(["item_name", "consolidation_reason"])["total_stickers"].sum().reset_index()
-        links_2 = sankey_subset.groupby(["consolidation_reason", "normalized_item_name"])["total_stickers"].sum().reset_index()
-
-        srcs = [node_map[r["item_name"]] for _, r in links_1.iterrows()] + [node_map[r["consolidation_reason"]] for _, r in links_2.iterrows()]
-        tgts = [node_map[r["consolidation_reason"]] for _, r in links_1.iterrows()] + [node_map[r["normalized_item_name"]] for _, r in links_2.iterrows()]
-        vals = links_1["total_stickers"].tolist() + links_2["total_stickers"].tolist()
-
-        node_colors = []
-        for n in all_nodes:
-            if n in raw_nodes:
-                node_colors.append("#94a3b8")
-            elif n in reason_nodes:
-                node_colors.append("#f59e0b")
-            else:
-                node_colors.append("#2563eb")
-
-        fig_sankey = go.Figure(data=[go.Sankey(
-            node=dict(
-                pad=14,
-                thickness=18,
-                line=dict(color="#cbd5e1", width=0.5),
-                label=all_nodes,
-                color=node_colors,
-                hovertemplate="노드: <b>%{label}</b><br>총 처리량: <b>%{value:,.0f} 매</b><extra></extra>"
-            ),
-            link=dict(
-                source=srcs,
-                target=tgts,
-                value=vals,
-                color="rgba(203, 213, 225, 0.4)",
-                hovertemplate="흐름: <b>%{source.label}</b> ➔ <b>%{target.label}</b><br>통합 스티커 수량: <b>%{value:,.0f} 매</b><extra></extra>"
-            )
-        )])
-
-        fig_sankey.update_layout(
-            margin=dict(l=10, r=10, t=20, b=20),
-            height=460,
-            font=dict(family="Pretendard, -apple-system, sans-serif", size=11, color="#334155")
-        )
-        st.plotly_chart(fig_sankey, use_container_width=True)
-
-        st.markdown("<div style='margin-bottom: 24px;'></div>", unsafe_allow_html=True)
-
-        st.markdown("##### 🔎 품목별 상세 통합 계보 탐색기 (Consolidation Inspector)")
-        st.caption("특정 상품을 선택하시면, 원천 구글 시트에서 어떤 수기 표기들로 몇 건씩 기입되었고 최종 표준 품목으로 어떻게 정규화되었는지 전수 계보를 보여드립니다.")
-
+        # ---------------------------------------------------------
+        # 1. Product Selection & Overview Card
+        # ---------------------------------------------------------
         insp_col1, insp_col2 = st.columns([1, 2])
         with insp_col1:
             dropdown_options = list(multi_variant_items.index) + [i for i in sorted(variant_counts.index) if i not in multi_variant_items.index]
             default_idx = dropdown_options.index("The빠새") if "The빠새" in dropdown_options else 0
             sel_insp_item = st.selectbox(
-                "조회할 표준 품목 선택",
+                "🔎 계보를 추적할 표준 품목 선택",
                 options=dropdown_options,
                 index=default_idx,
                 key="sel_insp_item"
@@ -3871,6 +3815,156 @@ with tab5:
             </div>
             """, unsafe_allow_html=True)
 
+        st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
+
+        # ---------------------------------------------------------
+        # 2. Interactive Sankey Diagram with Focus Mode
+        # ---------------------------------------------------------
+        sankey_head_col, mode_col = st.columns([2, 1])
+        with sankey_head_col:
+            st.markdown("##### 🌊 인터랙티브 데이터 계보 생키 다이어그램 (Sankey Flow)")
+            st.caption("수기 기입 편차가 어떤 통합 규칙을 거쳐 최종 표준 품목으로 수렴하는지 인터랙티브하게 확인하세요.")
+        with mode_col:
+            sankey_mode = st.radio(
+                "다이어그램 모드",
+                ["🎯 선택 품목 집중 계보 (권장)", "🌐 다중 표기 Top 10 전체 흐름"],
+                horizontal=True,
+                key="sankey_view_mode"
+            )
+
+        if "선택 품목 집중" in sankey_mode:
+            raw_nodes = item_lineage["item_name"].tolist()
+            rule_nodes = list(dict.fromkeys(item_lineage["consolidation_reason"].tolist()))
+            target_node = [f"[{sku_code}] {sel_insp_item}"]
+
+            all_nodes = raw_nodes + rule_nodes + target_node
+            node_map = {n: i for i, n in enumerate(all_nodes)}
+
+            def get_rule_color(r_name):
+                if "오타" in r_name:
+                    return "#e11d48", "rgba(225, 29, 72, 0.55)"
+                elif "띄어쓰기" in r_name:
+                    return "#d97706", "rgba(217, 119, 6, 0.55)"
+                elif "대소문자" in r_name:
+                    return "#0284c7", "rgba(2, 132, 199, 0.55)"
+                elif "표준 일치" in r_name:
+                    return "#059669", "rgba(5, 150, 105, 0.55)"
+                else:
+                    return "#7c3aed", "rgba(124, 58, 237, 0.55)"
+
+            node_colors = []
+            for n in all_nodes:
+                if n in raw_nodes:
+                    r_type = item_lineage[item_lineage["item_name"] == n]["consolidation_reason"].iloc[0]
+                    solid_c, _ = get_rule_color(r_type)
+                    node_colors.append(solid_c)
+                elif n in rule_nodes:
+                    node_colors.append("#64748b")
+                else:
+                    node_colors.append("#1d4ed8")
+
+            srcs, tgts, vals, link_colors = [], [], [], []
+            for _, r in item_lineage.iterrows():
+                srcs.append(node_map[r["item_name"]])
+                tgts.append(node_map[r["consolidation_reason"]])
+                vals.append(r["total_stickers"])
+                _, rgba_c = get_rule_color(r["consolidation_reason"])
+                link_colors.append(rgba_c)
+
+            for rule in rule_nodes:
+                rule_vol = item_lineage[item_lineage["consolidation_reason"] == rule]["total_stickers"].sum()
+                srcs.append(node_map[rule])
+                tgts.append(node_map[target_node[0]])
+                vals.append(rule_vol)
+                _, rgba_c = get_rule_color(rule)
+                link_colors.append(rgba_c)
+
+            fig_sankey = go.Figure(data=[go.Sankey(
+                node=dict(
+                    pad=24,
+                    thickness=24,
+                    line=dict(color="#cbd5e1", width=0.5),
+                    label=all_nodes,
+                    color=node_colors,
+                    hovertemplate="노드: <b>%{label}</b><br>총 물량: <b>%{value:,.0f} 매</b><extra></extra>"
+                ),
+                link=dict(
+                    source=srcs,
+                    target=tgts,
+                    value=vals,
+                    color=link_colors,
+                    hovertemplate="계보: <b>%{source.label}</b> ➔ <b>%{target.label}</b><br>통합 스티커 수량: <b>%{value:,.0f} 매</b><extra></extra>"
+                )
+            )])
+            fig_sankey.update_layout(
+                margin=dict(l=10, r=10, t=15, b=15),
+                height=340,
+                font=dict(family="Pretendard, -apple-system, sans-serif", size=12, color="#1e293b")
+            )
+            st.plotly_chart(fig_sankey, use_container_width=True)
+
+        else:
+            top_10_canons = multi_variant_items.head(10).index.tolist()
+            sankey_subset = lineage_df[lineage_df["normalized_item_name"].isin(top_10_canons)].copy()
+
+            raw_nodes = sankey_subset["item_name"].unique().tolist()
+            norm_nodes = sankey_subset["normalized_item_name"].unique().tolist()
+            all_nodes = raw_nodes + norm_nodes
+            node_map = {n: i for i, n in enumerate(all_nodes)}
+
+            links = sankey_subset.groupby(["item_name", "normalized_item_name"])["total_stickers"].sum().reset_index()
+
+            srcs = [node_map[r["item_name"]] for _, r in links.iterrows()]
+            tgts = [node_map[r["normalized_item_name"]] for _, r in links.iterrows()]
+            vals = links["total_stickers"].tolist()
+
+            link_colors = []
+            node_colors = []
+            for _, r in links.iterrows():
+                if r["normalized_item_name"] == sel_insp_item:
+                    link_colors.append("rgba(37, 99, 235, 0.8)")
+                else:
+                    link_colors.append("rgba(203, 213, 225, 0.35)")
+
+            for n in all_nodes:
+                if n == sel_insp_item:
+                    node_colors.append("#1d4ed8")
+                elif n in raw_nodes:
+                    is_sel_raw = not sankey_subset[(sankey_subset["item_name"] == n) & (sankey_subset["normalized_item_name"] == sel_insp_item)].empty
+                    node_colors.append("#2563eb" if is_sel_raw else "#94a3b8")
+                else:
+                    node_colors.append("#64748b")
+
+            fig_sankey = go.Figure(data=[go.Sankey(
+                node=dict(
+                    pad=14,
+                    thickness=18,
+                    line=dict(color="#cbd5e1", width=0.5),
+                    label=all_nodes,
+                    color=node_colors,
+                    hovertemplate="노드: <b>%{label}</b><br>총 물량: <b>%{value:,.0f} 매</b><extra></extra>"
+                ),
+                link=dict(
+                    source=srcs,
+                    target=tgts,
+                    value=vals,
+                    color=link_colors,
+                    hovertemplate="흐름: <b>%{source.label}</b> ➔ <b>%{target.label}</b><br>통합 스티커 수량: <b>%{value:,.0f} 매</b><extra></extra>"
+                )
+            )])
+            fig_sankey.update_layout(
+                margin=dict(l=10, r=10, t=15, b=15),
+                height=420,
+                font=dict(family="Pretendard, -apple-system, sans-serif", size=11, color="#334155")
+            )
+            st.plotly_chart(fig_sankey, use_container_width=True)
+
+        st.markdown("<div style='margin-bottom: 24px;'></div>", unsafe_allow_html=True)
+
+        # ---------------------------------------------------------
+        # 3. Detailed Lineage Table
+        # ---------------------------------------------------------
+        st.markdown(f"##### 📋 '{sel_insp_item}' 상세 원천 표기 통합 내역 ({len(item_lineage)}종)")
         item_lineage["share_pct"] = (item_lineage["total_stickers"] / item_total_stk * 100).round(1) if item_total_stk > 0 else 0
         disp_lineage = item_lineage[[
             "item_name", "row_count", "total_stickers", "share_pct", "consolidation_reason", "min_date", "max_date"
@@ -3879,40 +3973,44 @@ with tab5:
             "원천 수기 표기 (Raw String)", "작업 횟수 (건)", "총 작업 매수 (매)", "작업량 비중 (%)",
             "통합 및 정규화 사유 (Reason)", "원천 최초 발생일", "최근 작업일"
         ]
-
         st.dataframe(disp_lineage, use_container_width=True, hide_index=True)
 
         st.markdown("<div style='margin-bottom: 24px;'></div>", unsafe_allow_html=True)
 
-        st.markdown("##### 📋 구글 시트 [아이템 마스터] 탭 1초 복사 도구")
-        st.caption("구글 시트의 `[아이템 마스터]` 탭에 붙여넣을 수 있는 최신 표준 마스터(666개 품목)입니다. 아래 텍스트를 복사하여 구글 시트 A1 셀에 `Ctrl+V` 하시면 모든 상품명과 제조사, 규격이 자동으로 채워집니다.")
+        # ---------------------------------------------------------
+        # 4. Google Sheet 1-Click Master Exporter (12 Columns Exactly)
+        # ---------------------------------------------------------
+        st.markdown("##### 📋 구글 시트 [아이템 마스터] 탭용 12개 컬럼 동기화 도구")
+        st.caption("구글 시트의 `[아이템 마스터]` 탭에 있는 12개 컬럼(`item_code` ~ `benchmark_speed_hr`)과 100% 동일한 순서와 규격으로 내보냅니다. 다운로드하신 TSV 파일을 열어 전체 선택(Ctrl+A) 후 구글 시트 A1 셀에 붙여넣기(Ctrl+V)하시면 됩니다.")
+
+        exact_dim_cols = [
+            "item_code", "item_name", "manufacturer_id", "manufacturer_name",
+            "category_1", "category_2", "volume_value", "volume_unit", "standard_volume",
+            "default_pack_qty", "difficulty_tier", "benchmark_speed_hr"
+        ]
+        df_sheet_export = df_dim_item[exact_dim_cols].copy()
 
         tsv_buffer = io.StringIO()
-        df_master_export = df_dim_item[["item_name", "manufacturer_name", "category_1", "category_2", "standard_volume"]].copy()
-        df_master_export.columns = ["제품명", "제조사", "카테고리1", "카테고리2", "표준중량/규격"]
-        df_master_export.to_csv(tsv_buffer, sep="\t", index=False)
+        df_sheet_export.to_csv(tsv_buffer, sep="\t", index=False)
         tsv_content = tsv_buffer.getvalue()
 
         copy_col1, copy_col2 = st.columns([1, 1])
         with copy_col1:
             st.download_button(
-                "📥 구글 시트 붙여넣기용 TSV 다운로드 (.tsv)",
+                "📥 구글 시트 [아이템 마스터] 탭용 TSV 다운로드 (12개 컬럼 완벽 일치)",
                 data=tsv_content,
-                file_name="google_sheet_item_master.tsv",
+                file_name="google_sheet_dim_item_master_12cols.tsv",
                 mime="text/tab-separated-values",
-                key="btn_download_tsv_master"
+                key="btn_download_tsv_master_12"
             )
         with copy_col2:
             st.download_button(
-                "📥 정제 마스터 CSV 다운로드 (item_master.csv)",
-                data=df_master_export.to_csv(index=False, encoding="utf-8-sig"),
-                file_name="item_master.csv",
+                "📥 전체 상품 마스터 CSV 다운로드 (dim_item.csv)",
+                data=df_sheet_export.to_csv(index=False, encoding="utf-8-sig"),
+                file_name="dim_item.csv",
                 mime="text/csv",
-                key="btn_download_csv_clean_master"
+                key="btn_download_csv_clean_dim"
             )
-
-        with st.expander("📋 화면에서 텍스트 직접 복사하기 (클릭하여 펼치기)"):
-            st.code(tsv_content[:2500] + f"\n... (외 {len(df_master_export)-30}개 품목 생략 - 상단 다운로드 버튼 권장)", language="text")
 
 
 # ---------------------------------------------------------
