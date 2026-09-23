@@ -45,5 +45,37 @@ class TestLineageVisualizer(unittest.TestCase):
         self.assertIsNotNone(fig)
         self.assertEqual(len(fig.data), 1)
 
+    def test_variant_counts_and_subtab3_filtering(self):
+        silver_data = pd.DataFrame([
+            {"item_name": "The 빠새", "normalized_item_name": "The빠새", "work_date": "2026-03-01", "work_month": "2026-03", "sticker_qty": 500, "buyer_normalized": "신세계", "manufacturer": "해태", "match_type": "alias"},
+            {"item_name": "the빠새", "normalized_item_name": "The빠새", "work_date": "2026-03-02", "work_month": "2026-03", "sticker_qty": 300, "buyer_normalized": "신세계", "manufacturer": "해태", "match_type": "case"},
+            {"item_name": "The빠새", "normalized_item_name": "The빠새", "work_date": "2026-04-02", "work_month": "2026-04", "sticker_qty": 1000, "buyer_normalized": "이마트", "manufacturer": "해태", "match_type": "exact"},
+            {"item_name": "포카칩 어니언", "normalized_item_name": "포카칩어니언", "work_date": "2026-03-03", "work_month": "2026-03", "sticker_qty": 800, "buyer_normalized": "신세계", "manufacturer": "오리온", "match_type": "alias"},
+            {"item_name": "포카칩어니언", "normalized_item_name": "포카칩어니언", "work_date": "2026-04-04", "work_month": "2026-04", "sticker_qty": 1200, "buyer_normalized": "이마트", "manufacturer": "오리온", "match_type": "exact"},
+        ])
+        dim_item_data = pd.DataFrame([
+            {"item_name": "The빠새", "item_code": "ITM-001", "manufacturer_name": "해태", "category_1": "과자", "category_2": "스낵", "standard_volume": "60g"},
+            {"item_name": "포카칩어니언", "item_code": "ITM-002", "manufacturer_name": "오리온", "category_1": "과자", "category_2": "스낵", "standard_volume": "66g"},
+        ])
+
+        lineage_df, multi_variant_items, items_catalog = build_lineage_dataset(silver_data, dim_item_data)
+        variant_counts = lineage_df.groupby("normalized_item_name")["item_name"].nunique()
+        
+        # Test 3 or more filter
+        cand_3_plus = variant_counts[variant_counts >= 3].index.tolist()
+        self.assertEqual(cand_3_plus, ["The빠새"])
+
+        # Test date filtering affects cross-tab
+        filtered_march = silver_data[silver_data["work_month"] == "2026-03"]
+        filtered_april = silver_data[silver_data["work_month"] == "2026-04"]
+        ct_march = pd.crosstab(filtered_march["buyer_normalized"], filtered_march["manufacturer"], values=filtered_march["sticker_qty"], aggfunc="sum").fillna(0)
+        ct_april = pd.crosstab(filtered_april["buyer_normalized"], filtered_april["manufacturer"], values=filtered_april["sticker_qty"], aggfunc="sum").fillna(0)
+
+        # In March, buyer was 신세계; in April, buyer was 이마트
+        self.assertIn("신세계", ct_march.index)
+        self.assertNotIn("이마트", ct_march.index)
+        self.assertIn("이마트", ct_april.index)
+        self.assertNotIn("신세계", ct_april.index)
+
 if __name__ == "__main__":
     unittest.main()

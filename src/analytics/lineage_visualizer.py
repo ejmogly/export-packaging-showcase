@@ -472,9 +472,9 @@ def render_interactive_lineage_studio_html(items_catalog: list, initial_focus: s
 <!-- Controls -->
 <div class="control-bar">
   <div class="filter-pills">
-    <div class="filter-pill active" onclick="setFilter('top15', this)">🔥 3종 이상 분열군 TOP 15</div>
-    <div class="filter-pill" onclick="setFilter('typo', this)">🚨 수기 오타 교정군</div>
-    <div class="filter-pill" onclick="setFilter('space', this)">⚠️ 띄어쓰기 편차군</div>
+    <div class="filter-pill active" onclick="setFilter('top15', this)">🔥 3종 이상 분열군 (17개)</div>
+    <div class="filter-pill" onclick="setFilter('typo', this)">🚨 수기 오타 교정군 (10개)</div>
+    <div class="filter-pill" onclick="setFilter('space', this)">⚠️ 띄어쓰기 편차군 (150개)</div>
     <div class="filter-pill" onclick="setFilter('highvol', this)">💎 고물량 상위 TOP 20</div>
     <div class="filter-pill" onclick="setFilter('all', this)">🌐 전체 다중 표기군 (187개)</div>
   </div>
@@ -525,15 +525,15 @@ function getRuleStyle(reason) {{
 
 function getFilteredItems() {{
   if (currentFilter === 'top15') {{
-    return ALL_ITEMS.filter(x => x.variants_count >= 3).slice(0, 15);
+    return ALL_ITEMS.filter(x => x.variants_count >= 3);
   }} else if (currentFilter === 'typo') {{
     return ALL_ITEMS.filter(x => x.has_typo);
   }} else if (currentFilter === 'space') {{
-    return ALL_ITEMS.filter(x => x.has_space).slice(0, 25);
+    return ALL_ITEMS.filter(x => x.has_space);
   }} else if (currentFilter === 'highvol') {{
     return [...ALL_ITEMS].sort((a,b) => b.total_stickers - a.total_stickers).slice(0, 20);
   }} else {{
-    return ALL_ITEMS.slice(0, 45); // Limit for DOM performance
+    return ALL_ITEMS;
   }}
 }}
 

@@ -2460,10 +2460,24 @@ with tab3:
             st.info("조회 기간 내 바이어 실적 데이터가 없습니다.")
 
     with t3_sub3:
-        st.markdown("#### 🔗 바이어 ➔ 제조사 ➔ 카테고리 공급망 밸류체인 & 교차 매트릭스")
-        st.caption("바이어가 발주한 작업 오더가 어떤 국내 식품 제조사와 카테고리로 연결되는지 3단계 밸류체인 생키(Sankey) 흐름과 공급 집중도를 분석합니다.")
+        sc_head_left, sc_head_right = st.columns([1.8, 1.2])
+        with sc_head_left:
+            st.markdown("#### 🔗 바이어 ➔ 제조사 ➔ 카테고리 공급망 밸류체인 & 교차 매트릭스")
+            st.caption("바이어가 발주한 작업 오더가 어떤 국내 식품 제조사와 카테고리로 연결되는지 3단계 밸류체인 생키(Sankey) 흐름과 공급 집중도를 분석합니다.")
+        with sc_head_right:
+            use_full_history_sc = st.checkbox(
+                "📅 2026년 전체 누적 실적으로 확장 분석",
+                value=False,
+                key="t3_sub3_full_history_toggle",
+                help="기본 설정은 사이드바의 조회 기간을 반영합니다. 체크 시 날짜 필터와 무관하게 2026년 전체 데이터로 확장 분석합니다."
+            )
 
-        base_sc_df = silver_df.copy() if use_full_history_t3 else filtered_silver.copy()
+        base_sc_df = silver_df.copy() if use_full_history_sc else filtered_silver.copy()
+
+        if not use_full_history_sc:
+            st.caption(f"🗓️ **현재 적용 기간: {start_d} ~ {end_d}** (선택 기간 내 {len(filtered_silver):,}건 실적 반영)")
+        else:
+            st.caption(f"🗓️ **전체 누적 기간: {min_date} ~ {max_date}** (2026년 전체 {len(silver_df):,}건 실적 반영)")
 
         if not base_sc_df.empty:
             # 1. Sankey Diagram (Upgraded Multi-Stage Value Chain Flow)
@@ -3660,6 +3674,7 @@ with tab5:
         st.caption("현장 작업일지에서 수기 기입 편차(오타, 띄어쓰기, 영문 대소문자, 약어)로 분열되어 기록되던 원천 텍스트들이 표준 마스터 품목으로 어떻게 정규화·통합되었는지 시각적 계보를 추적합니다.")
 
         lineage_df, multi_variant_items, items_catalog = build_lineage_dataset(silver_df, df_dim_item)
+        variant_counts = lineage_df.groupby("normalized_item_name")["item_name"].nunique()
 
         tot_variants = len(lineage_df[lineage_df["item_name"] != lineage_df["normalized_item_name"]])
         tot_canon_multi = len(multi_variant_items)
@@ -3786,7 +3801,7 @@ with tab5:
         with mode_col:
             viz_mode = st.radio(
                 "시각화 모드",
-                ["✨ 인터랙티브 네온 계보 스튜디오 (Interactive Studio)", "🌊 다크모드 정밀 생키 다이어그램 (Plotly Full-Scale)", "📋 187개 다중 표기군 전수 통합 매트릭스"],
+                ["✨ 인터랙티브 네온 계보 스튜디오 (Interactive Studio)", "📋 187개 다중 표기군 전수 통합 매트릭스"],
                 horizontal=True,
                 key="viz_lineage_mode"
             )
@@ -3794,67 +3809,6 @@ with tab5:
         if "인터랙티브 네온 계보" in viz_mode:
             studio_html = render_interactive_lineage_studio_html(items_catalog, initial_focus=sel_insp_item)
             components.html(studio_html, height=720, scrolling=False)
-
-        elif "다크모드 정밀 생키" in viz_mode:
-            top_10_canons = multi_variant_items.head(10).index.tolist()
-            if sel_insp_item not in top_10_canons:
-                top_10_canons.append(sel_insp_item)
-            sankey_subset = lineage_df[lineage_df["normalized_item_name"].isin(top_10_canons)].copy()
-
-            raw_nodes = sankey_subset["item_name"].unique().tolist()
-            norm_nodes = sankey_subset["normalized_item_name"].unique().tolist()
-            all_nodes = raw_nodes + norm_nodes
-            node_map = {n: i for i, n in enumerate(all_nodes)}
-
-            links = sankey_subset.groupby(["item_name", "normalized_item_name"])["total_stickers"].sum().reset_index()
-
-            srcs = [node_map[r["item_name"]] for _, r in links.iterrows()]
-            tgts = [node_map[r["normalized_item_name"]] for _, r in links.iterrows()]
-            vals = links["total_stickers"].tolist()
-
-            link_colors = []
-            for _, r in links.iterrows():
-                if r["normalized_item_name"] == sel_insp_item:
-                    link_colors.append("rgba(56, 189, 248, 0.9)")
-                else:
-                    link_colors.append("rgba(148, 163, 184, 0.18)")
-
-            node_colors = []
-            for n in all_nodes:
-                if n == sel_insp_item:
-                    node_colors.append("#38bdf8")
-                elif n in raw_nodes:
-                    is_sel_raw = not sankey_subset[(sankey_subset["item_name"] == n) & (sankey_subset["normalized_item_name"] == sel_insp_item)].empty
-                    node_colors.append("#0284c7" if is_sel_raw else "#475569")
-                else:
-                    node_colors.append("#334155")
-
-            fig_sankey = go.Figure(data=[go.Sankey(
-                node=dict(
-                    pad=20,
-                    thickness=22,
-                    line=dict(color="#334155", width=1),
-                    label=all_nodes,
-                    color=node_colors,
-                    hovertemplate="노드: <b>%{label}</b><br>총 물량: <b>%{value:,.0f} 매</b><extra></extra>"
-                ),
-                link=dict(
-                    source=srcs,
-                    target=tgts,
-                    value=vals,
-                    color=link_colors,
-                    hovertemplate="흐름: <b>%{source.label}</b> ➔ <b>%{target.label}</b><br>통합 스티커 수량: <b>%{value:,.0f} 매</b><extra></extra>"
-                )
-            )])
-            fig_sankey.update_layout(
-                paper_bgcolor="#0f172a",
-                plot_bgcolor="#0f172a",
-                margin=dict(l=20, r=20, t=25, b=25),
-                height=460,
-                font=dict(family="Pretendard, -apple-system, sans-serif", size=12, color="#f8fafc")
-            )
-            st.plotly_chart(fig_sankey, use_container_width=True)
-
         else:
             st.markdown("##### 📋 187개 다중 표기 품목군 전수 통합 매트릭스")
             summary_lineage = lineage_df[lineage_df["item_name"] != lineage_df["normalized_item_name"]].copy()
