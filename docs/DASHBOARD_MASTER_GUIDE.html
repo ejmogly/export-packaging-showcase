@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>수출 식품 스티커 작업 분석 플랫폼 완전 정복 마스터 가이드 (Official Manual)</title>
+  
+  <!-- Web Fonts -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #1e40af;
+      --primary-light: #3b82f6;
+      --primary-bg: #eff6ff;
+      --accent: #0ea5e9;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --slate-50: #f8fafc;
+      --slate-100: #f1f5f9;
+      --slate-200: #e2e8f0;
+      --slate-300: #cbd5e1;
+      --slate-400: #94a3b8;
+      --slate-500: #64748b;
+      --slate-600: #475569;
+      --slate-700: #334155;
+      --slate-800: #1e293b;
+      --slate-900: #0f172a;
+      --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      font-size: 15px;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: #f8fafc;
+      color: var(--slate-800);
+      line-height: 1.7;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 320px;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 100;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      padding: 24px 20px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 17px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.3px;
+    }
+
+    .sidebar-brand .icon-box {
+      width: 34px;
+      height: 34px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    }
+
+    .sidebar-subtitle {
+      font-size: 11px;
+      color: var(--slate-400);
+      margin-top: 6px;
+      font-weight: 500;
+    }
+
+    .sidebar-search {
+      padding: 14px 20px 10px;
+    }
+
+    .search-input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 8px 12px 8px 34px;
+      color: #f8fafc;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.2s;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
+      background-repeat: no-repeat;
+      background-position: 12px center;
+    }
+
+    .search-input:focus {
+      border-color: #38bdf8;
+      background-color: rgba(255, 255, 255, 0.12);
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 14px 20px;
+    }
+
+    .sidebar-nav::-webkit-scrollbar {
+      width: 5px;
+    }
+    .sidebar-nav::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+
+    .nav-group-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #64748b;
+      margin: 14px 10px 6px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      padding: 7px 12px;
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+      line-height: 1.4;
+      margin-bottom: 2px;
+    }
+
+    .nav-link:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+      transform: translateX(2px);
+    }
+
+    .nav-link.active {
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      font-weight: 700;
+      border-left: 3px solid #38bdf8;
+    }
+
+    .nav-sub {
+      padding-left: 24px;
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-side {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #e2e8f0;
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .btn-side:hover {
+      background: #3b82f6;
+      border-color: #3b82f6;
+      color: #ffffff;
+    }
+
+    /* Main Content */
+    .main-wrap {
+      flex: 1;
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 40px 48px 100px;
+    }
+
+    /* Top Banner Card */
+    .hero-banner {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #0369a1 100%);
+      border-radius: 16px;
+      padding: 36px 40px;
+      color: #ffffff;
+      box-shadow: 0 12px 30px rgba(30, 64, 175, 0.25);
+      margin-bottom: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-banner::after {
+      content: "";
+      position: absolute;
+      top: -60px;
+      right: -60px;
+      width: 240px;
+      height: 240px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.3) 0%, rgba(56, 189, 248, 0) 70%);
+      pointer-events: none;
+    }
+
+    .hero-tags {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .hero-tag {
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      color: #e0f2fe;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      backdrop-filter: blur(4px);
+    }
+
+    .hero-title {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1.3;
+      letter-spacing: -0.5px;
+      margin-bottom: 12px;
+    }
+
+    .hero-desc {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #bae6fd;
+      max-width: 840px;
+    }
+
+    /* Content Typography */
+    h1, h2, h3, h4, h5 {
+      color: var(--slate-900);
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-top: 48px;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--slate-200);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin-top: 36px;
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--slate-200);
+    }
+
+    h3 {
+      font-size: 17px;
+      margin-top: 28px;
+      margin-bottom: 12px;
+      color: var(--primary);
+    }
+
+    h4 {
+      font-size: 15px;
+      margin-top: 20px;
+      margin-bottom: 8px;
+      color: var(--slate-800);
+    }
+
+    p {
+      margin-bottom: 14px;
+      color: #334155;
+    }
+
+    ul, ol {
+      margin-bottom: 16px;
+      padding-left: 22px;
+    }
+
+    li {
+      margin-bottom: 6px;
+      color: #334155;
+    }
+
+    strong {
+      color: var(--slate-900);
+      font-weight: 700;
+    }
+
+    hr {
+      border: 0;
+      height: 1px;
+      background: var(--slate-200);
+      margin: 36px 0;
+    }
+
+    /* Inline Badges & Code */
+    code {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      background: #e2e8f0;
+      color: #1e293b;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 9px;
+      border-radius: 14px;
+      white-space: nowrap;
+    }
+
+    .badge-success {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+    }
+
+    .badge-warning {
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fde68a;
+    }
+
+    .badge-danger {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+
+    .badge-accent {
+      background: #e0e7ff;
+      color: #4338ca;
+      border: 1px solid #c7d2fe;
+    }
+
+    /* Code Block & Terminal UI */
+    .code-wrapper {
+      background: #090d16;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      margin: 18px 0 24px;
+      overflow: hidden;
+    }
+
+    .code-header {
+      background: #131b2e;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .code-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .code-dot.red { background: #ef4444; }
+    .code-dot.yellow { background: #f59e0b; }
+    .code-dot.green { background: #10b981; }
+
+    .code-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      letter-spacing: 0.5px;
+      margin-left: 4px;
+      flex: 1;
+    }
+
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #cbd5e1;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .copy-btn:hover {
+      background: #38bdf8;
+      color: #090d16;
+      border-color: #38bdf8;
+    }
+
+    pre {
+      padding: 18px 20px;
+      overflow-x: auto;
+      margin: 0;
+      background: transparent;
+    }
+
+    pre code {
+      background: transparent;
+      color: #38bdf8;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      line-height: 1.6;
+      padding: 0;
+      font-weight: 400;
+    }
+
+    /* Modern Table UI */
+    .table-container {
+      background: #ffffff;
+      border: 1px solid var(--slate-200);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+      margin: 18px 0 24px;
+    }
+
+    .guide-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      text-align: left;
+    }
+
+    .guide-table th {
+      background: #f1f5f9;
+      color: var(--slate-800);
+      font-weight: 700;
+      padding: 12px 16px;
+      border-bottom: 2px solid var(--slate-200);
+    }
+
+    .guide-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--slate-100);
+      color: #334155;
+    }
+
+    .guide-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .guide-table tr:hover td {
+      background-color: #f8fafc;
+    }
+
+    /* Floating Back-to-Top Button */
+    .back-to-top {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      width: 44px;
+      height: 44px;
+      background: #1e40af;
+      color: #ffffff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(30, 64, 175, 0.35);
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 18px;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+      z-index: 90;
+    }
+
+    .back-to-top.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .back-to-top:hover {
+      background: #2563eb;
+      transform: translateY(-2px);
+    }
+
+    /* Print Styles */
+    @media print {
+      .sidebar, .back-to-top, .sidebar-footer, .copy-btn {
+        display: none !important;
+      }
+      body {
+        background: #ffffff;
+        color: #000000;
+      }
+      .main-wrap {
+        max-width: 100%;
+        padding: 0;
+      }
+      .hero-banner {
+        background: #1e3a8a !important;
+        color: #ffffff !important;
+        box-shadow: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar Navigation -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <div class="icon-box">📦</div>
+        <div>
+          <div>스티커 분석 가이드</div>
+          <div class="sidebar-subtitle">Enterprise Operational Manual</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-search">
+      <input type="text" id="searchInput" class="search-input" placeholder="키워드 검색 (예: 생키, 5.4, 단일의존도)..." oninput="handleSearch()">
+    </div>
+
+    <nav class="sidebar-nav" id="sidebarNav">
+      <div class="nav-group-title">공식 목차</div>
+      <a href="#sec-1" class="nav-link">1. 글로벌 사이드바 컨트롤러</a>
+      <a href="#sec-2" class="nav-link">2. 탭 1: 종합 운영 상황판</a>
+      <a href="#sec-3" class="nav-link">3. 탭 2: 생산성 & 난이도 엔진</a>
+      
+      <div class="nav-group-title">비즈니스 분석 & 마트</div>
+      <a href="#sec-4" class="nav-link">4. 탭 3: 바이어 & 수출국가별 분석</a>
+      <a href="#sec-4-1" class="nav-link nav-sub">3.1 종합 실적 (Overview)</a>
+      <a href="#sec-4-2" class="nav-link nav-sub">3.2 고객 건강도 모니터</a>
+      <a href="#sec-4-3" class="nav-link nav-sub">3.3 공급망 교차 매트릭스</a>
+      
+      <a href="#sec-5" class="nav-link">5. 탭 4: 인력 계획 & 마진 채산성</a>
+      <a href="#sec-5-1" class="nav-link nav-sub">4.1 납기 시뮬레이터</a>
+      <a href="#sec-5-2" class="nav-link nav-sub">4.2 마진 채산성 분석기</a>
+
+      <div class="nav-group-title">품질 거버넌스 & 엔지니어링</div>
+      <a href="#sec-6" class="nav-link">6. 탭 5: DQ & 마스터 관리(MDM)</a>
+      <a href="#sec-6-1" class="nav-link nav-sub">6.1 4대 DQ KPI 해석법</a>
+      <a href="#sec-6-2" class="nav-link nav-sub">6.2 4대 세부 검수실 (5.1~5.4)</a>
+
+      <a href="#sec-7" class="nav-link">7. 탭 6: 아키텍처 & 거버넌스</a>
+      <a href="#sec-7-1" class="nav-link nav-sub">6.1 엔드투엔드 계보도</a>
+      <a href="#sec-7-2" class="nav-link nav-sub">6.2 스타 스키마 ERD</a>
+      <a href="#sec-7-3" class="nav-link nav-sub">6.3 통합 데이터 카탈로그</a>
+
+      <a href="#sec-8" class="nav-link">8. 공통 조작 규칙 & UX 가이드</a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="btn-side" onclick="window.print()">🖨️ 인쇄 / PDF</button>
+      <button class="btn-side" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })">▲ 최상단</button>
+    </div>
+  </aside>
+
+  <!-- Main Content Body -->
+  <main class="main-wrap" id="mainContent">
+    
+    <!-- Top Hero Banner -->
+    <div class="hero-banner">
+      <div class="hero-tags">
+        <span class="hero-tag">Official Manual v2.4 LTS</span>
+        <span class="hero-tag">Streamlit Enterprise Certified</span>
+        <span class="hero-tag">2026.09.24 Updated</span>
+        <span class="hero-tag">실시간 검증 완료 🟢</span>
+      </div>
+      <h1 class="hero-title" style="color:#ffffff; margin:0 0 10px; border:none; padding:0;">수출 식품 스티커 작업 분석 플랫폼 완전 정복 마스터 가이드</h1>
+      <p class="hero-desc">
+        A4 수기 원장 및 실시간 구글 스프레드시트부터 Silver Fact, Gold Mart, 3단계 밸류체인 생키 플로우, 인터랙티브 네온 계보 스튜디오까지 전사 데이터 파이프라인의 100% 무결성을 증명하는 공식 운영 매뉴얼입니다.
+      </p>
+    </div>
+
+    <!-- Generated Markdown Content -->
+    <article id="articleContent">
+      <h1 id="_1">📦 수출 식품 스티커 작업 분석 플랫폼 완전 정복 마스터 가이드</h1>
+<p>본 문서는 <strong>수출 식품 스티커 작업 분석 플랫폼(Sticker Packaging Analytics Platform)</strong>의 모든 화면, 사이드바 컨트롤러, 6대 메인 탭, 세부 서브탭, KPI 지표, 시각화 차트, 마우스오버(Hover) 툴팁의 계산 원리와 데이터 해석법, 그리고 실무 현장 및 경영진 의사결정 활용 방법을 하나도 빠짐없이 집대성한 공식 운영 매뉴얼입니다.</p>
+<hr />
+<h2 id="table-of-contents">📑 목차 (Table of Contents)</h2>
+<ol>
+<li><a href="#sec-1">글로벌 사이드바 컨트롤러 (Global Sidebar Controls)</a></li>
+<li><a href="#sec-2">탭 1: 📊 종합 운영 상황판 (Executive Overview)</a></li>
+<li><a href="#sec-3">탭 2: ⚡ 생산성 &amp; 난이도 분석 (Productivity &amp; Complexity Engine)</a></li>
+<li><a href="#sec-4">탭 3: 🌍 바이어 &amp; 수출국가별 분석 (3대 서브탭 완벽 해설)</a><br />
+   - <a href="#sec-4-1">서브탭 3.1: 📊 바이어 및 수출국가 종합 실적 (Overview)</a><br />
+   - <a href="#sec-4-2">서브탭 3.2: 📈 바이어별 발주 추이 &amp; 고객 건강도 모니터 (Trends &amp; Health)</a><br />
+   - <a href="#sec-4-3">서브탭 3.3: 🔗 바이어 ➔ 제조사 ➔ 품목 공급망 교차 매트릭스 (Supply Chain Matrix)</a></li>
+<li><a href="#sec-5">탭 4: ⏱️ 인력 계획 &amp; 마진 채산성 분석기 (2대 서브탭 완벽 해설)</a><br />
+   - <a href="#sec-5-1">서브탭 4.1: ⏱️ 인력 계획 &amp; 납기 시뮬레이터 (Capacity Planner)</a><br />
+   - <a href="#sec-5-2">서브탭 4.2: 💰 임가공 단가 &amp; 마진 채산성 분석기 (Pricing &amp; Margin Analyzer)</a></li>
+<li><a href="#sec-6">탭 5: 🛡️ 데이터 품질(DQ) &amp; 마스터 데이터 관리(MDM) 센터</a><br />
+   - <a href="#sec-6-1">4대 DQ KPI 카드 &amp; 87.33% 무결성 vs 404건 이상치 해석법</a><br />
+   - <a href="#sec-6-2">4대 세부 검수실 서브탭 완벽 가이드</a></li>
+<li><a href="#sec-7">탭 6: 🗺️ 데이터 아키텍처 &amp; 엔드투엔드 거버넌스 맵</a><br />
+   - <a href="#sec-7-1">서브탭 6.1: 🔄 엔드투엔드 데이터 계보도 (Data Lineage)</a><br />
+   - <a href="#sec-7-2">서브탭 6.2: 📐 스타 스키마 ERD 관계도 (Star Schema)</a><br />
+   - <a href="#sec-7-3">서브탭 6.3: 📖 통합 데이터 카탈로그 &amp; 스키마 탐색기 (Data Catalog)</a></li>
+<li><a href="#sec-8">대시보드 조작 공통 규칙 및 UX 가이드라인</a></li>
+</ol>
+<hr />
+<p><a id="sec-1" name="sec-1"></a></p>
+<h2 id="1-global-sidebar-controls">1. 글로벌 사이드바 컨트롤러 (Global Sidebar Controls)</h2>
+<p>화면 좌측 사이드바는 대시보드 전체의 데이터 원천, 조회 기간, 분석 범위를 중앙 집중식으로 제어하는 메인 컨트롤 타워입니다.</p>
+<div class="code-wrapper"><div class="code-header"><span class="code-dot red"></span><span class="code-dot yellow"></span><span class="code-dot green"></span><span class="code-title">SYSTEM SPEC & DIAGRAM</span><button class="copy-btn" onclick="copyCode(this)">복사</button></div><pre><code>┌──────────────────────────────────────────────────────────┐
+│                   [사이드바 컨트롤러 구조]                   │
+├──────────────────────────────────────────────────────────┤
+│ 1. 상단 브랜딩 &amp; 시스템 상태 배너 (Live Sheet 연동 여부)    │
+│ 2. 🔄 실시간 동기화 (Cache Clear) 버튼                   │
+│ 3. 📅 조회 기간 설정 (시작일 ~ 종료일 DatePicker)        │
+│ 4. ⚡ 빠른 기간 프리셋 (전체 1~9월 / 당월 9월 / 전월 8월)  │
+│ 5. ⚠️ 비가동일 감지 및 인접 가동일 원클릭 이동 배너         │
+│ 6. 🏭 다차원 필터 (식품 제조사 필터 / 품목 대분류 필터)   │
+└──────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="11">1.1 상단 브랜딩 및 데이터 소스 상태 배너</h3>
+<ul>
+<li><strong><span class="badge badge-success">🟢 Live Google Sheets 연결됨</span></strong>: 구글 스프레드시트 실시간 CSV 엔드포인트와 정상 연결되어 현장의 최신 일지가 실시간 동기화 중임을 의미합니다.</li>
+<li><strong><code>🟡 로컬 캐시 데이터 사용 중</code></strong>: 네트워크 단절 시 안전한 운영을 위해 로컬에 백업된 캐시 데이터를 로드한 상태입니다.</li>
+<li><strong><code>🔄 실시간 동기화 (Cache Clear) 버튼</code></strong>: 현장에서 구글 시트에 새 일지를 추가했거나 오탈자를 수정한 직후, 캐시를 즉시 파기(<code>st.cache_data.clear()</code>)하고 최신 데이터를 실시간 반영합니다.</li>
+</ul>
+<h3 id="12">1.2 분석 조회 기간 설정 (<code>📅 시작일 ~ 종료일</code>)</h3>
+<ul>
+<li><strong>스마트 디폴트(기본값)</strong>: 시스템 날짜 기준 당월 1일(<code>2026-09-01</code>)부터 데이터상 최종 가동일(<code>2026-09-15</code>)로 자동 설정됩니다.</li>
+<li><strong>빠른 기간 선택 (Quick Presets)</strong>:</li>
+<li><strong><code>전체 (1~9월)</code></strong>: 2026년 1월 2일부터 9월 15일까지의 3,188개 전수 작업 데이터(5,955,362매)를 일괄 분석합니다.</li>
+<li><strong><code>당월 (9월)</code></strong>: 9월 1일부터 9월 15일까지의 최신 운영 실적을 집중 조회합니다.</li>
+<li><strong><code>전월 (8월)</code></strong>: 8월 1일부터 8월 31일까지의 월간 실적을 집중 조회합니다.</li>
+<li><strong>전기 비교 자동 연동 (Period-over-Period Delta)</strong>:</li>
+<li>사용자가 선택한 기간의 일수($N$일)를 계산하여, <strong>동일한 일수만큼의 바로 직전 기간($N$일)</strong> 데이터를 자동으로 대조해 모든 KPI 카드의 상단 뱃지(▲/▼)에 증감률과 증감량을 자동 표시합니다.</li>
+</ul>
+<h3 id="13-smart-jump">1.3 지능형 비가동일 감지 및 스마트 점프 (Smart Jump)</h3>
+<ul>
+<li><strong>발생 상황</strong>: 사용자가 주말(토/일)이나 공장 하계 휴가 등 작업 실적이 전혀 없는 날짜(예: <code>2026-08-02 일요일</code>)를 선택한 경우.</li>
+<li><strong>동작 원리</strong>: 시스템이 이를 즉시 탐지하여 흰색 에러창 대신 <strong>비가동일 안내 경보 배너</strong>를 띄우고 다음 버튼을 제공합니다:</li>
+<li><code>[ ◀ 직전일 (YYYY-MM-DD 요일) ]</code>: 가장 가까운 직전 작업일로 1클릭 이동.</li>
+<li><code>[ 다음일 ▶ (YYYY-MM-DD 요일) ]</code>: 가장 가까운 다음 작업일로 1클릭 이동.</li>
+<li><code>[ 🔄 최신 가동월 (2026-09-01 ~ 2026-09-15) ]</code>: 당월 전체 조회로 복귀.</li>
+</ul>
+<h3 id="14">1.4 다차원 필터 (제조사 &amp; 품목 대분류)</h3>
+<ul>
+<li><strong><code>🏭 제조사 필터</code></strong>: 롯데웰푸드, 해태제과, 삼양식품, 농심, 오리온, 매일유업 등 특정 식품 제조사 제품군만 격리하여 분석.</li>
+<li><strong><code>📂 품목 대분류 필터</code></strong>: 과자, 라면, 음료, 가공식품, 냉동식품 등 대분류별 실적 필터링.</li>
+</ul>
+<hr />
+<p><a id="sec-2" name="sec-2"></a></p>
+<h2 id="2-1-executive-overview">2. 탭 1: 📊 종합 운영 상황판 (Executive Overview)</h2>
+<p>공장 총괄 관리자와 경영진이 공장의 전반적인 생산량, 투입 공수, 인당 효율성을 한눈에 파악하는 최상위 관제 센터입니다.</p>
+<h3 id="21-4-kpi">2.1 상단 4대 핵심 KPI 카드</h3>
+<div class="table-container"><table class="guide-table">
+<thead>
+<tr>
+<th style="text-align: left;">KPI 명칭</th>
+<th style="text-align: left;">계산 공식</th>
+<th style="text-align: center;">단위</th>
+<th style="text-align: left;">데이터 해석법 및 관리 포인트</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>총 부착 스티커 수량</strong></td>
+<td style="text-align: left;">$\sum \text{sticker_qty}$</td>
+<td style="text-align: center;">매</td>
+<td style="text-align: left;">• 실제 낱개 제품 표면에 부착된 라벨 스티커 총수량.<br/>• 상단 뱃지는 동일 일수 직전 기간 대비 증감률(%).<br/>• 하단 보조 지표로 함께 포장된 <strong>총 출하 박스수</strong>가 표시되어 박스당 입량 밀도를 파악 가능.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>총 투입 공수 (Man-Hours)</strong></td>
+<td style="text-align: left;">$\sum \text{row_man_hours}$</td>
+<td style="text-align: center;">인·시</td>
+<td style="text-align: left;">• 현장 작업 인력의 실제 누적 가동 공수.<br/>• 일자별 투입 인원 $\times$ 8시간(정규)을 오더별 스티커 작업량에 비례 배분한 값.<br/>• 하단에 <strong>총 가동일수</strong> 및 <strong>일평균 투입 인원(명/일)</strong> 표시.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>시간당 스티커 생산성</strong></td>
+<td style="text-align: left;">$\frac{\text{총 스티커 수량}}{\text{총 투입 공수}}$</td>
+<td style="text-align: center;">매/hr</td>
+<td style="text-align: left;">• 현장 전체의 1인 1시간당 평균 라벨 부착 속도.<br/>• <strong>벤치마크</strong>: 180~200매/hr 이상이면 양호, 150매/hr 미만이면 고난이도 오더 집중 또는 공정 병목 발생 징후.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>인당 일일 평균 생산량</strong></td>
+<td style="text-align: left;">$\frac{\text{총 스티커 수량}}{\sum \text{worker_count}}$</td>
+<td style="text-align: center;">매/인</td>
+<td style="text-align: left;">• 작업자 1명이 하루(8시간) 동안 완수한 평균 부착 수량.<br/>• 2,000~2,500매/인 수준이면 표준적인 일일 달성량.</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="22">2.2 스티커 작업량 및 투입 인원 추이 차트</h3>
+<ul>
+<li><strong>주기 전환 라디오</strong>: <code>일간 추이 (최근 30일)</code>, <code>주간 추이 (전체 기간)</code>, <code>월간 추이 (2026년)</code>.</li>
+<li><strong>차트 조작 원칙</strong>: 화면 클릭/드래그 시 축이 밀리거나 확대되지 않도록 고정(<code>dragmode=False</code>).</li>
+<li><strong>일간 추이 마우스오버(Hover) 툴팁 구성</strong>:<br />
+<code>2026-09-15 (화요일)
+  • 일일 스티커 작업량: 34,341 매
+  • 1인당 처리 매수: 2,862 매/인
+  • 당일 투입 인원: 12.0 명
+  • 출하 완제품 박스: 2,354 박스
+  • 시간당 생산성: 357.7 매/hr</code></li>
+<li><strong>해석법</strong>: 투입 인원(라인)이 늘어났는데 작업량(막대)이 비례해서 증가하지 않았다면, 당일 박스당 입량이 많은 고난이도 품목이 집중되었음을 의미합니다.</li>
+</ul>
+<h3 id="23-10">2.3 제조사별 비중 파이 차트 &amp; 상위 10개 품목 바 차트</h3>
+<ul>
+<li><strong>제조사별 비중 파이 차트</strong>: 롯데웰푸드, 해태제과, 농심 등 식품 제조사별 스티커 작업량 점유율 표시.</li>
+<li><strong>상위 10개 품목 수평 바 차트</strong>: 가장 많은 스티커 공수를 소모한 상위 10개 효자/집중 품목 표시.</li>
+<li><strong>호버 툴팁</strong>: 품목명, 제조사, 작업량(매), 점유율(%), 출하 박스수, 평균 입량(개/박스).</li>
+</ul>
+<hr />
+<p><a id="sec-3" name="sec-3"></a></p>
+<h2 id="3-2-productivity-complexity-engine">3. 탭 2: ⚡ 생산성 &amp; 난이도 분석 (Productivity &amp; Complexity Engine)</h2>
+<p>작업 속도가 왜 빨라지거나 느려지는지, 어떤 제품이 작업하기 까다로운지를 공학적으로 규명하는 탭입니다.</p>
+<h3 id="31-4-kpi">3.1 4대 세부 KPI 카드</h3>
+<ol>
+<li><strong>최고 생산성 달성 카테고리</strong>: 시간당 부착량이 가장 높은 품목군 (예: 단순 스낵류, 봉지라면류).</li>
+<li><strong>최고 생산성 달성 단일 품목</strong>: 350~450매/hr를 상회하는 초고속 부착 품목.</li>
+<li><strong>최고 난이도 (최저 생산성) 품목</strong>: 100~130매/hr 수준으로 작업자의 손이 많이 가는 품목 (주로 박스당 입량 32~48개 품목).</li>
+<li><strong>작업 난이도 민감도</strong>: 박스당 입량이 10개 증가할 때 시간당 생산성이 몇 % 감소하는지 나타내는 상관 계수.</li>
+</ol>
+<h3 id="32-box-plot">3.2 카테고리별 생산성 분포 (Box Plot)</h3>
+<ul>
+<li>중분류(<code>category_2</code>)별 작업 속도의 분산과 중앙값을 상자수염그림으로 비교.</li>
+<li><strong>호버 툴팁</strong>: <code>최댓값 / Q3(상위 25%) / 중앙값(Median) / Q1(하위 25%) / 최솟값</code>.</li>
+<li><strong>해석법</strong>: 상자의 길이가 짧을수록 작업 속도가 일정하고 예측 가능하며, 상자가 위아래로 길면 작업자 숙련도나 포장 규격에 따라 편차가 큼을 의미합니다.</li>
+</ul>
+<h3 id="33-vs-scatter-plot">3.3 작업 난이도(입량) vs 생산성 상관관계 산점도 (Scatter Plot)</h3>
+<ul>
+<li><strong>X축</strong>: 박스당 입량 (개/박스 - 낱개 밀도)</li>
+<li><strong>Y축</strong>: 시간당 스티커 생산성 (매/hr)</li>
+<li><strong>버블 크기</strong>: 출하 박스 수량</li>
+<li><strong>색상</strong>: 3대 난이도 등급</li>
+<li>🟢 <strong>단순 (Low - 16개 이하)</strong>: 박스당 낱개가 적어 라벨 작업이 빠르게 완료됨.</li>
+<li>🔵 <strong>보통 (Medium - 16~31개)</strong>: 표준적인 과자/파이 박스.</li>
+<li>🔴 <strong>고난이도 (High - 32개 이상)</strong>: 빼빼로(40개입), 스틱커피(50개입), 아이스크림(40개입) 등 박스를 열고 낱개마다 부착하는 데 시간이 오래 걸리는 품목.</li>
+</ul>
+<hr />
+<p><a id="sec-4" name="sec-4"></a></p>
+<h2 id="4-3-3">4. 탭 3: 🌍 바이어 &amp; 수출국가별 분석 (3대 서브탭 완벽 해설)</h2>
+<p>수출 거래처별 물량 비중, 시계열 발주 증감 추이, 고객 건강도 이탈 감지, 그리고 식품 제조사와의 3단계 밸류체인을 분석하는 전략 탭입니다.</p>
+<h3 id="41-4-kpi">4.1 상단 공통 4대 바이어 KPI</h3>
+<ul>
+<li><strong>활성 거래 바이어 수</strong>: 기간 내 오더를 발주한 고유 바이어 개사 수 (누적 주문 건수).</li>
+<li><strong>수출 대상 국가 및 권역</strong>: 라벨링 제품이 선적되는 글로벌 목적지 수 (북미, 유럽, 아시아 등).</li>
+<li><strong>최대 바이어 작업 집중도</strong>: 1위 바이어(예: <code>거복</code> 또는 <code>캐나다 직수출</code>)가 차지하는 작업량 비중(%). 30%를 초과하면 해당 고객사 의존도가 높음을 시사.</li>
+<li><strong>바이어당 평균 작업량</strong>: 바이어 1개사당 평균 발생 스티커 매수 및 출하 박스 수.</li>
+</ul>
+<hr />
+<p><a id="sec-4-1" name="sec-4-1"></a></p>
+<h3 id="31-overview">서브탭 3.1: 📊 바이어 및 수출국가 종합 실적 (Overview)</h3>
+<ul>
+<li><strong>주요 바이어별 실적 비중 (파이 차트)</strong>:</li>
+<li>집계 기준 전환: <code>스티커 수량 (매)</code>, <code>출하 박스 수량 (박스)</code>, <code>투입 공수 (인·시)</code>.</li>
+<li>상위 7대 거래처 외 나머지는 <code>'기타 바이어'</code>로 자동 롤업(Roll-up).</li>
+<li><strong>호버 툴팁</strong>: 바이어명, 수출국가/권역, 점유율(%), 총 스티커 작업량, 출하 박스수, 주요 출하품목 Top 2.</li>
+<li><strong>수출 대상국 및 권역별 작업량 (수평 막대 차트)</strong>:</li>
+<li><code>수출 대상국별 (권역 색상 구분)</code> vs <code>글로벌 권역별 합계 (대륙 단위)</code> 토글 지원.</li>
+<li><strong>바이어/수출처별 상세 마트 (Data Table)</strong>:</li>
+<li>바이어명, 국가, 권역, 품목 검색 필터 및 다차원 정렬(스티커순, 박스순, 공수순, 주문건수순) 제공 및 CSV 다운로드.</li>
+</ul>
+<hr />
+<p><a id="sec-4-2" name="sec-4-2"></a></p>
+<h3 id="32-trends-health">서브탭 3.2: 📈 바이어별 발주 추이 &amp; 고객 건강도 모니터 (Trends &amp; Health)</h3>
+<h4 id="1-stacked-bar-chart">1) 기간별 발주 추이 적층 바 차트 (Stacked Bar Chart)</h4>
+<ul>
+<li><strong>전체 기간 실적 분석 체크박스</strong>: 사이드바의 단기 날짜와 무관하게 2026년 전체 9개월 데이터로 장기 트렌드를 볼 수 있는 기능.</li>
+<li><strong>집계 주기 선택</strong>: <code>월별 추이 (Monthly)</code> vs <code>분기별 추이 (Quarterly: 2026Q1, Q2, Q3)</code>.</li>
+<li><strong>차트 바 스택 순서 (Bottom to Top)</strong>:</li>
+<li>차트의 맨 바닥(base=0)에 <strong>'기타 바이어'</strong>가 위치하고, 그 위로 Rank 6 $\rightarrow$ Rank 5 $\rightarrow$ Rank 4 $\rightarrow$ Rank 3 $\rightarrow$ Rank 2 $\rightarrow$ <strong>Rank 1 (최상단)</strong> 순으로 적층됩니다.</li>
+<li><strong>통합 호버 툴팁 순서 및 수치 정합성 (Top to Bottom)</strong>:</li>
+<li>마우스를 올리면 <code>hoversort="trace"</code>에 따라 <strong>Rank 1 바이어가 최상단</strong>, <strong>기타 바이어가 최하단</strong>에 나열됩니다.</li>
+<li><strong>정합성 보정 원리</strong>: 각 trace에 <code>customdata</code>를 바인딩하여, 당월 발주가 없는 바이어는 정확히 <code>0 매</code>로 표출되며, 실제 발주한 수량만 정직하게 출력됩니다.<br />
+<code>[2026-04월 호버 툴팁 예시]
+  2026-04
+  • 거복: 0 매
+  • 캐나다 직수출: 0 매
+  • 판아시아 (오스트리아): 17,940 매
+  • 아눈구 (몽골): 0 매
+  • 판아시아 (독일): 0 매
+  • KFT (캐나다): 0 매
+  • 기타 바이어: 85,420 매
+  (당월 총합계: 103,360 매)</code></li>
+</ul>
+<h4 id="2-customer-health-matrix">2) 고객 건강도 스코어카드 &amp; 이탈 조기 경보 (Customer Health Matrix)</h4>
+<p>비교 대상 기간(기본값: <code>최근 활성 2개월 2026-08 vs 2026-09</code> 또는 <code>직전 분기 2026Q2 vs 2026Q3</code>)을 기준으로 전월(전기) 대비 증감률(MoM, QoQ)을 산출하여 4대 상태로 자동 분류합니다:</p>
+<ol>
+<li>🚀 <strong>고성장 (High-Growth, +20% 이상 증가)</strong>:<br />
+   - <strong>해당 거래처</strong>: <code>거복</code>(+53.6%, +67,126매), <code>벤쿠버</code>(+49.9%, +1,948매).<br />
+   - <strong>실무 조치</strong>: 라벨 원단 및 부자재 재고를 미리 비축하고 전용 작업 라인을 우선 배정하여 납기 지연 예방.</li>
+<li>🟢 <strong>안정/유지 (Stable, -10% ~ +20% 변동)</strong>:<br />
+   - 정기적인 발주 패턴을 유지하는 충성 고객군.</li>
+<li>⚠️ <strong>이탈/감소 주의 (At-Risk, -10% 이상 급감)</strong>:<br />
+   - <strong>해당 거래처</strong>: <code>캐나다 직수출</code>(-49.6%, -72,300매), <code>H-Mart 미주</code>(-73.3%, -22,060매), <code>대만 직수출</code>(-90.2%).<br />
+   - <strong>실무 조치</strong>: 현지 통관 규격 변경, 선적 컨테이너 지연, 또는 경쟁 임가공 업체의 단가 인하 여부를 영업팀이 즉시 유선 점검.</li>
+<li>🆕 <strong>신규 진입/재개 (New / Resumed)</strong>:<br />
+   - <strong>해당 거래처</strong>: <code>KFT 캐나다</code>(41,054매), <code>롯데 캐나다</code>(12,400매), <code>함초롬</code>(11,706매).<br />
+   - <strong>실무 조치</strong>: 첫 3회 출하 건에 대한 검수 사진 아카이빙 및 품질 검수를 집중 관리.</li>
+</ol>
+<hr />
+<p><a id="sec-4-3" name="sec-4-3"></a></p>
+<h3 id="33-supply-chain-matrix">서브탭 3.3: 🔗 바이어 ➔ 제조사 ➔ 품목 공급망 교차 매트릭스 (Supply Chain Matrix)</h3>
+<p>어떤 해외 바이어가 국내 어떤 식품 제조사의 어떤 카테고리 제품을 주로 사 가는지 3단계 밸류체인 흐름과 공급망 의존도를 분석합니다.</p>
+<h4 id="1">1) 기간 조회 동적 연동 및 누적 확장 분석 토글</h4>
+<ul>
+<li><strong>글로벌 사이드바 날짜 필터 실시간 연동</strong>: 사이드바의 조회 기간(<code>start_d ~ end_d</code>) 변경 시, 3단계 밸류체인 플로우, 크로스탭 히트맵, 단일 제조사 의존도 리스크 진단 테이블의 모든 수치와 분석 대상 데이터가 실시간으로 재계산되어 즉시 반응합니다. 상단 캡션을 통해 현재 적용 중인 기간과 반영된 실적 건수(<code>🗓️ 현재 적용 기간: YYYY-MM-DD ~ YYYY-MM-DD (선택 기간 내 N건 실적 반영)</code>)가 실시간 안내됩니다.</li>
+<li><strong><code>📅 2026년 전체 누적 실적으로 확장 분석</code> 토글</strong>:</li>
+<li>기본값은 해제(<code>False</code>) 상태로 사이드바 조회 기간을 엄격히 준수합니다.</li>
+<li>체크 시 사이드바 기간 설정과 무관하게 2026년 전체 9개월 누적 데이터(5,955,362매, 3,188개 전수 실적)로 즉시 확장 분석할 수 있는 인탭(In-tab) 유연성을 제공합니다.</li>
+</ul>
+<h4 id="2-3-sankey-flow-diagram">2) 3단계 공급망 밸류체인 흐름 (Sankey Flow Diagram)</h4>
+<ul>
+<li><strong>구조</strong>: <code>[좌측: 해외 바이어 Top 7 + 기타]</code> ➔ <code>[중앙: 국내 식품 제조사]</code> ➔ <code>[우측: 제품 카테고리]</code></li>
+<li><strong>선(Link) 두께의 의미</strong>: 해당 경로를 통해 부착된 <strong>누적 스티커 수량(매)</strong>의 크기입니다. 1장의 누락도 없이 유량 보존(Flow Conservation) 법칙이 적용됩니다.</li>
+<li><strong>인터랙티브 기능</strong>:</li>
+<li><code>🎯 바이어 집중 분석 (Focus Buyer)</code>: 특정 주요 바이어를 선택하면 해당 바이어의 다운스트림 연결선이 선명하게 하이라이트되고 타 거래처 흐름은 딤(Dim) 처리됩니다.</li>
+<li><code>단독 격리 (Isolate)</code>: 체크 시 선택한 바이어의 공급망 흐름만 단독으로 분리하여 집중 분석합니다.</li>
+</ul>
+<h4 id="3-2d-cross-tab-heatmap">3) 2D 바이어 × 제조사 크로스 매트릭스 히트맵 (Cross-Tab Heatmap)</h4>
+<ul>
+<li>상위 8대 바이어와 국내 6대 핵심 제조사 간의 작업 물량을 한눈에 교차 비교하는 히트맵입니다. 각 셀에 만(10,000) 단위 축약 표기 및 상세 매수 툴팁이 제공됩니다.</li>
+</ul>
+<h4 id="4-single-point-of-failure-alert">4) 공급망 단일 의존도 리스크 진단 (Single Point of Failure Alert)</h4>
+<ul>
+<li>특정 바이어의 전체 물량 중 <strong>단일 제조사 제품 비중이 70% 이상인 경우</strong>를 시스템이 자동 감지하여 경보를 발령합니다:</li>
+<li><code>몽골 아눈구</code>: <strong>해태제과 84.4%</strong> (해태 라인 차질 시 아눈구 오더 마비 위험)</li>
+<li><code>캐나다 직수출</code>: <strong>롯데웰푸드 70.6%</strong></li>
+<li><code>KFT 캐나다</code>: <strong>해태제과 93.2%</strong></li>
+<li><code>미주 H-Mart</code>: <strong>해태제과 95.0%</strong></li>
+<li><code>벤쿠버 / 토론토</code>: <strong>매일유업 100.0%</strong></li>
+<li><strong>실무 조치</strong>: 특정 제조사의 공장 셧다운, 원자재 수급 차질, 납기 지연 발생 시 해당 바이어의 출하 전체가 마비될 위험(Single Point of Failure)을 사전 예방하기 위해 대체 제조 라인 확보 및 분산 발주 협의 진행.</li>
+</ul>
+<hr />
+<p><a id="sec-5" name="sec-5"></a></p>
+<h2 id="5-4-2">5. 탭 4: ⏱️ 인력 계획 &amp; 마진 채산성 분석기 (2대 서브탭 완벽 해설)</h2>
+<p>현장 생산성 데이터를 기반으로 <strong>"납기를 맞추려면 몇 명이 필요한가?"</strong>를 예측하고, <strong>"이 작업을 해서 회사가 돈이 얼마나 남는가?"</strong>를 실시간으로 계산하는 재무/공정 통합 탭입니다.</p>
+<hr />
+<p><a id="sec-5-1" name="sec-5-1"></a></p>
+<h3 id="41-capacity-planner">서브탭 4.1: ⏱️ 인력 계획 &amp; 납기 시뮬레이터 (Capacity Planner)</h3>
+<h4 id="1-stdata_editor">1) 새 오더 직접 입력 테이블 (<code>st.data_editor</code>)</h4>
+<ul>
+<li>사용자가 표에서 직접 품목명을 검색/선택하고, <strong>작업수량(출하 박스수)</strong>과 <strong>입량(개/박스)</strong>을 기입합니다.</li>
+<li>행 추가/삭제가 자유로우며 실시간으로 총 스티커 매수($\text{박스수} \times \text{입량}$)가 계산됩니다.</li>
+</ul>
+<h4 id="2">2) 현장 인력 및 근무 파라미터 슬라이더</h4>
+<ul>
+<li><strong>👥 현재 가용 작업자 수 (명)</strong>: 당일 투입 가능한 인원 (1~25명).</li>
+<li><strong>⏰ 1인당 기본 정규 근무 시간 (시간/일)</strong>: 기본 8.0시간.</li>
+<li><strong>🌙 1인당 추가 연장/잔업 시간 (시간/일)</strong>: 0.0~4.0시간. 잔업을 늘리면 당일 완수 능력이 비례해서 증가합니다.</li>
+<li><strong>🎯 목표 납기 기한 (일 이내 완료)</strong>: 바이어 선적 스케줄에 따른 데드라인 일수 (예: 1.0일 이내, 2.0일 이내).</li>
+</ul>
+<h4 id="3-4-kpi">3) 4대 예측 KPI 카드</h4>
+<ol>
+<li><strong>총 예정 작업량</strong>: 입력된 오더의 총 스티커 매수 및 출하 박스수 (평균 입량 표시).</li>
+<li><strong>필요 총 공수 (Man-Hours)</strong>: 과거 실제 작업일지에서 집계된 <strong>해당 품목의 누적 벤치마크 속도(매/hr)</strong>를 적용해 산출한 순수 필요 인·시.<br />
+   $$\text{필요 공수} = \sum \left( \frac{\text{품목별 총 스티커수}}{\text{품목별 벤치마크 속도(매/hr)}} \right)$$</li>
+<li><strong>목표 기한 권장 인원</strong>: 데드라인 내 완수를 위해 투입해야 할 최소 작업자 수. 현재 가용 인원과 비교하여 <code>▲ 납기 안전</code> 또는 <code>▼ N명 부족 (인력 충원 필요)</code> 뱃지가 점등됩니다.</li>
+<li><strong>현재 팀 예상 납기</strong>: 현재 인원과 잔업 시간 설정으로 작업했을 때 완제품 출하까지 걸리는 소요 일수. 잔업 설정 시 <code>▲ 잔업으로 N일 단축</code> 효과가 실시간 표출됩니다.</li>
+</ol>
+<hr />
+<p><a id="sec-5-2" name="sec-5-2"></a></p>
+<h3 id="42-pricing-margin-analyzer">서브탭 4.2: 💰 임가공 단가 &amp; 마진 채산성 분석기 (Pricing &amp; Margin Analyzer)</h3>
+<p>공장 운영의 최종 목적인 <strong>영업 이익과 채산성</strong>을 시뮬레이션하는 경영진 전용 재무 엔진입니다.</p>
+<h4 id="1_1">1) 인터랙티브 파라미터 조절기</h4>
+<ol>
+<li><strong>👷 현장 작업자 평균 시급 (원/시간)</strong>:<br />
+   - <strong>기본값: 13,000원</strong> (2026년 기준 현장 포장/스티커 작업자 평균 시급).<br />
+   - 500원 단위로 증감 가능하며, 시급을 올리면 인건비 원가가 즉시 재계산됩니다.</li>
+<li><strong>임가공 계약 단가 책정 3대 모드 (Pricing Mode)</strong>:<br />
+   - <strong>모드 A: 스티커 낱개당 단가제</strong>: 매당 수수료 (기본값: <strong>30원/매</strong>).<br />
+   - <strong>모드 B: 출하 완제품 박스당 단가제</strong>: 박스당 수수료 (기본값: <strong>750원/박스</strong>).<br />
+   - <strong>모드 C: 난이도(입량 밀도)별 차등 단가제</strong>:<ul>
+<li>단순 (16개 이하): <strong>25원/매</strong></li>
+<li>보통 (16~31개): <strong>30원/매</strong></li>
+<li>고난이도 (32개 이상): <strong>40원/매</strong></li>
+</ul>
+</li>
+</ol>
+<h4 id="2-4-kpi">2) 경영진 4대 재무 KPI 카드</h4>
+<div class="table-container"><table class="guide-table">
+<thead>
+<tr>
+<th style="text-align: left;">재무 KPI</th>
+<th style="text-align: left;">계산 공식</th>
+<th style="text-align: center;">단위</th>
+<th style="text-align: left;">경영적 의미</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>💵 총 추정 매출액</strong></td>
+<td style="text-align: left;">$\sum (\text{작업량} \times \text{적용 단가})$</td>
+<td style="text-align: center;">원</td>
+<td style="text-align: left;">바이어에게 청구할 수 있는 임가공 수수료 총액.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>👷 총 투입 인건비 원가</strong></td>
+<td style="text-align: left;">$\sum (\text{소요 공수} \times \text{시급 13,000원})$</td>
+<td style="text-align: center;">원</td>
+<td style="text-align: left;">작업을 수행하는 데 지급된 순수 작업자 직접 인건비.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>📈 공정 매출총이익</strong></td>
+<td style="text-align: left;">$\text{총 매출액} - \text{총 인건비 원가}$</td>
+<td style="text-align: center;">원</td>
+<td style="text-align: left;">• 임가공 매출에서 인건비를 뺀 공정 영업 이익.<br/>• 흑자 시 <strong>초록색(+)</strong>, 적자 시 <strong>빨간색(-)</strong> 표시.<br/>• 보조 지표로 <strong>매출총이익률(Gross Margin %)</strong> 표출.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>📦 박스당 평균 공정 마진</strong></td>
+<td style="text-align: left;">$\frac{\text{공정 매출총이익}}{\text{총 출하 박스수}}$</td>
+<td style="text-align: center;">원/박스</td>
+<td style="text-align: left;">출하 완제품 박스 1개를 포장할 때마다 순수하게 남는 마진.</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="3-top-10">3) 바이어별 공정 이익 기여도 Top 10 바 차트</h4>
+<ul>
+<li><strong>초록색 막대 (흑자 기여 바이어)</strong>: <code>캐나다 직수출</code> (+479만 원, 마진율 23.5%), <code>판아시아 오스트리아</code> (+332만 원, 마진율 17.3%).</li>
+<li><strong>빨간색 막대 (손실 유발 바이어)</strong>: <code>Order #332</code> (-90.7만 원), <code>007 캐나다</code> (-50.6만 원), <code>H-Mart 미주</code> (-19.6만 원).</li>
+</ul>
+<h4 id="4-vs-bcg">4) 품목별 마진율 vs 작업량 BCG 매트릭스 산점도</h4>
+<ul>
+<li><strong>X축</strong>: 총 스티커 작업량 (매, 로그 스케일)</li>
+<li><strong>Y축</strong>: 공정 마진율 (%)</li>
+<li><strong>버블 크기</strong>: 출하 박스수</li>
+<li><strong>점선 기준선</strong>: <strong>손익분기점 (0% Margin Line)</strong></li>
+<li><strong>4분면 해석 및 실무 전략</strong>:</li>
+<li>🌟 <strong>Star (효자 품목 - 우상단)</strong>: 대량 물량이면서 마진율 30~50%를 상회 (예: 캐나다용 화이트 빼빼로, 아몬드 빼빼로). 공장 가동률을 지탱하는 핵심 수익원.</li>
+<li>⚠️ <strong>Drain (단가 인상 시급 품목 - 우하단 또는 0% 하회)</strong>:<ul>
+<li>물량은 많은데(수만~십만 매) 마진율이 마이너스이거나 한 자릿수인 품목 (예: <code>허니버터칩</code> -71만 원 손실, <code>롤리폴리</code> -33만 원 손실).</li>
+<li><strong>원인</strong>: 박스당 입량이 많고 작업 속도가 느려, 매당 30원을 받아서는 시급 13,000원을 커버하지 못함.</li>
+<li><strong>해결책</strong>: 다음 계약 갱신 시 바이어에게 <strong>"입량 32개 이상 고난이도 품목은 매당 40원으로 인상"</strong>하거나 <strong>"박스당 750원 최저 보증 단가 적용"</strong>을 요구하는 근거 자료로 활용.</li>
+</ul>
+</li>
+</ul>
+<hr />
+<p><a id="sec-6" name="sec-6"></a></p>
+<h2 id="6-5-dq-mdm">6. 탭 5: 🛡️ 데이터 품질(DQ) &amp; 마스터 데이터 관리(MDM) 센터</h2>
+<p>수기 작성 및 OCR 추출 과정에서 발생한 데이터 오류를 잡아내고 마스터 테이블을 관리하는 거버넌스 룸입니다.</p>
+<p><a id="sec-6-1" name="sec-6-1"></a></p>
+<h3 id="61-4-dq-kpi-8733-vs-404">6.1 4대 DQ KPI 카드 &amp; 87.33% 무결성 vs 404건 이상치 해석법</h3>
+<div class="code-wrapper"><div class="code-header"><span class="code-dot red"></span><span class="code-dot yellow"></span><span class="code-dot green"></span><span class="code-title">SYSTEM SPEC & DIAGRAM</span><button class="copy-btn" onclick="copyCode(this)">복사</button></div><pre><code>┌──────────────────────────────────────────────────────────────────────────────────┐
+│                   [전체 원천 데이터 3,188개 행의 품질 구조]                         │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│ ✅ 완벽 무결한 행 (Clean Rows)        :  2,784 행 (87.33%)                         │
+│ ⚠️ 수량 불일치 정제 대상 (Mismatches)  :    404 행 (12.67%)                         │
+│    └─ 수량 불일치 (입량 × 작업수량 ≠ 스티커수량) : 404건 감지 (정밀 검수실 분리)        │
+│ 🏷️ 품목 마스터 미매칭 (Unmatched SKU) :      0 건 (0.00%) ➔ 100% 정규화 완료        │
+└──────────────────────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<ol>
+<li><strong>데이터 무결성 통과율 (완벽 행)</strong>:<br />
+   - <strong>수치</strong>: <code>87.33%</code> (뱃지: <code>2,784건 정상 (87.33%)</code>)<br />
+   - <strong>의미</strong>: 전체 3,188행 중 $\text{입량} \times \text{작업수량} = \text{스티커수량}$ 공식이 오차 없이 100% 일치한 행의 비율.</li>
+<li><strong>품목 마스터 매칭률</strong>:<br />
+   - <strong>수치</strong>: <code>100.0%</code> (뱃지: <code>434 SKUs 매칭</code>)<br />
+   - <strong>의미</strong>: 현장 수기 품목명이 4단계 표준화 엔진을 거쳐 표준 상품 마스터에 100% 정상 매핑되어 미매칭 품목 0건 달성.</li>
+<li><strong>수량 불일치 정제 대상</strong>:<br />
+   - <strong>수치</strong>: <code>404건 (12.67%)</code> (뱃지: <code>404건 불일치 (12.67%)</code>)<br />
+   - <strong>의미</strong>: 수기 일지 기재 상 스티커수량과 계산 수량이 어긋난 404건 전체를 자동 감지하여 분리하였으며, 현장 작업자의 실부착 기록(<code>sticker_qty</code>)을 기준으로 1차 보정 완료하여 대시보드 통계에 안전하게 반영 중임을 명시.</li>
+<li><strong>표준 마스터 엔티티</strong>:<br />
+   - <strong>수치</strong>: <code>434 SKUs</code> (제조사 26개사, 바이어 36개사 등록 관리).</li>
+</ol>
+<hr />
+<p><a id="sec-6-2" name="sec-6-2"></a></p>
+<h3 id="62-4">6.2 4대 세부 검수실 서브탭 완벽 가이드</h3>
+<h4 id="1-51-ocr-404">1) 🔍 서브탭 5.1: OCR/수기 이상치 정밀 검수실 (총 404건 감지)</h4>
+<ul>
+<li><strong>목적</strong>: 404건의 수량 불일치 데이터를 전수 분리하여 현장 실물 원장 대조 및 감사를 진행합니다.</li>
+<li><strong>오차 유형 분류</strong>:</li>
+<li><code>📈 기록치 초과 (기록 &gt; 계산)</code>: 일지 스티커수가 박스수$\times$입량보다 크게 기재된 경우 (여분 라벨, 로스분 포함 기재 의심).</li>
+<li><code>📉 기록치 미달 (기록 &lt; 계산)</code>: 일지 스티커수가 작게 기재된 경우 (자릿수 탈락, 묶음 단위 부분 부착 의심).</li>
+<li><strong>기능</strong>: 검색창(품목명/바이어), 오차 유형 셀렉트 필터, <strong>수량 불일치 내역 CSV 다운로드 버튼</strong> 제공.</li>
+</ul>
+<h4 id="2-52-dim_item">2) 📦 서브탭 5.2: 상품 마스터 관리 (dim_item)</h4>
+<ul>
+<li>434종의 표준 상품 마스터 열람, 12개 스키마 컬럼 명세, 별칭 사전 매핑 및 CSV 다운로드.</li>
+<li><strong>신규 품목 마스터 등록 폼</strong>: 품목코드, 품목명, 제조사, 대분류, 중분류, 규격, 기본 입수량, 난이도 등급, 기준 속도를 입력하여 마스터에 즉시 반영.</li>
+</ul>
+<h4 id="3-53-dimensions">3) 🏢 서브탭 5.3: 제조사 &amp; 바이어 디멘전 (Dimensions)</h4>
+<ul>
+<li><strong>제조사 마스터(26개사)</strong>: 고유 코드, 대표 브랜드, 사업 부문 열람, 신규 제조사 등록 폼 및 <code>dim_manufacturer.csv</code> 다운로드.</li>
+<li><strong>바이어 마스터(36개사)</strong>: 바이어 ID, 바이어명, 수출국, 권역, 거래처 유형, 누적 오더수, 스티커 매수, 해외 라벨링 규정 메모 열람, 신규 바이어 등록 폼 및 <code>dim_buyer.csv</code> 다운로드.</li>
+</ul>
+<h4 id="4-54-item-lineage-consolidation-map">4) 🔀 서브탭 5.4: 품목 데이터 계보 및 통합 맵 (Item Lineage &amp; Consolidation Map)</h4>
+<p>현장 작업일지에서 수기 기입 편차(오타, 띄어쓰기, 영문 대소문자, 약어)로 분열되어 기록되던 원천 텍스트들이 표준 마스터 품목으로 어떻게 정규화·통합되었는지 시각적 계보를 추적하고 마스터 동기화를 지원합니다.</p>
+<ul>
+<li><strong>4대 Lineage KPI 카드</strong>:<br />
+  1. <code>통합된 수기 변형 표기 (187종)</code>: 354개 별칭 사전 및 규칙 엔진 연동<br />
+  2. <code>다중 표기 수렴 품목군 (187개 SKU)</code>: 1개 표준명으로 단일화<br />
+  3. <code>구출된 작업 실적 (매)</code>: 수기 편차로 분열될 뻔한 실적 완벽 구출 (누락율 0.00% 달성)<br />
+  4. <code>마스터 무결성 달성도 (100.0%)</code>: 원천 3,188개 전수 매핑 완결</li>
+<li><strong>분석 품목군 빠른 필터 (Quick Filter)</strong>:</li>
+<li><code>전체 다중 표기군 (187개)</code>, <span class="badge badge-accent">🔥 3종 이상 분열군 (17개)</span>, <span class="badge badge-danger">🚨 오타 교정군 (15개)</span>, <span class="badge badge-warning">⚠️ 띄어쓰기 편차군 (154개)</span> 라디오 버튼을 통해 원하는 품목군을 1초 만에 전환 필터링.</li>
+<li><strong>2대 뷰 모드 (View Modes)</strong>:</li>
+<li>✨ <strong>인터랙티브 네온 계보 스튜디오 (Interactive Lineage Studio)</strong>: 고대비 네온 다크 HUD 캔버스 상에서 원천 수기 표기 ➔ 적용된 정규화 규칙 ➔ 최종 표준 품목 마스터 3단계를 유기적으로 잇는 SVG 동적 베지어 리본(Bezier Ribbons) 시각화. 노드나 규칙을 클릭하면 연결된 데이터 흐름이 네온 불빛으로 즉시 활성화되고 비연관 노드는 반투명 딤(Dim) 처리되는 양방향 인터랙션, 상단 HUD 실시간 통계 인스펙터, 실시간 키워드 검색창 제공.</li>
+<li>📋 <strong>187개 다중 표기군 전수 통합 매트릭스</strong>: 원천 수기 기입명, 공식 표준 마스터명, 적용된 정규화 규칙, 발생 건수, 작업 수량(매), 최초/최근 발생일 전수 감사 테이블.</li>
+<li><strong>선택 품목 상세 원천 표기 통합 내역</strong>:</li>
+<li>선택한 표준 품목의 원천 수기 표기(Raw String), 작업 횟수(건), 총 작업 매수(매), 작업량 비중(%), 통합 사유, 최초/최근 발생일 상세 열람.</li>
+<li><strong>📋 구글 시트 [아이템 마스터] 탭용 12개 컬럼 동기화 도구 (1-Click Master Exporter)</strong>:</li>
+<li>구글 스프레드시트의 <code>[아이템 마스터]</code> 탭에 정의된 12개 공식 컬럼(<code>item_code</code>, <code>item_name</code>, <code>manufacturer_id</code>, <code>manufacturer_name</code>, <code>category_1</code>, <code>category_2</code>, <code>volume_value</code>, <code>volume_unit</code>, <code>standard_volume</code>, <code>default_pack_qty</code>, <code>difficulty_tier</code>, <code>benchmark_speed_hr</code>)과 100% 동일한 순서와 규격으로 TSV 클립보드 복사용 파일 제공.</li>
+<li>다운로드한 TSV를 열어 <code>Ctrl+A</code> ➔ <code>Ctrl+C</code> 후 구글 시트 A1 셀에 <code>Ctrl+V</code>하면 현장 원천 시트가 즉각 동기화됨.</li>
+</ul>
+<hr />
+<p><a id="sec-7" name="sec-7"></a></p>
+<h2 id="7-6">7. 탭 6: 🗺️ 데이터 아키텍처 &amp; 엔드투엔드 거버넌스 맵</h2>
+<p>시스템의 기술적 신뢰도와 데이터 흐름을 투명하게 입증하는 엔지니어링 맵입니다.</p>
+<p><a id="sec-7-1" name="sec-7-1"></a></p>
+<h3 id="61-data-lineage">서브탭 6.1: 🔄 엔드투엔드 데이터 계보도 (Data Lineage)</h3>
+<ul>
+<li>구글 스프레드시트 ➔ Bronze(원천 적재) ➔ DQ Guardrail(품질 가드레일) ➔ Silver(정제 Fact) ➔ Gold(분석 마트) ➔ Streamlit UI &amp; 월간 결산 리포트 이메일로 이어지는 파이프라인 흐름 시각화.</li>
+<li><strong>라이브 동적 바인딩</strong>: 각 단계 카드에 현재 적재된 실제 데이터 행수(3,188행+), 마스터 품목수(434종), 제조사수(26사), 바이어수(36사)가 실시간 동적으로 연동되어 표출됩니다.</li>
+</ul>
+<p><a id="sec-7-2" name="sec-7-2"></a></p>
+<h3 id="62-erd-star-schema">서브탭 6.2: 📐 스타 스키마 ERD 관계도 (Star Schema)</h3>
+<ul>
+<li>중심 Fact Table(<code>silver_sticker_work_log</code>)과 3대 Dimension Table(<code>dim_item</code>, <code>dim_manufacturer</code>, <code>dim_buyer</code>) 간의 1:N 외래키 관계 및 복합 기본키(Composite PK: <code>work_date, page_no, line_no</code>) 구조를 다이어그램으로 제공.</li>
+</ul>
+<p><a id="sec-7-3" name="sec-7-3"></a></p>
+<h3 id="63-data-catalog">서브탭 6.3: 📖 통합 데이터 카탈로그 &amp; 스키마 탐색기 (Data Catalog)</h3>
+<ul>
+<li>8대 핵심 테이블을 셀렉트박스로 선택하여 상세 명세를 확인합니다:<br />
+  1. <code>silver_sticker_work_log (Silver 정제 Fact)</code><br />
+  2. <code>dim_item (상품 마스터 디멘전)</code><br />
+  3. <code>dim_manufacturer (제조사 마스터 디멘전)</code><br />
+  4. <code>dim_buyer (바이어 마스터 디멘전)</code><br />
+  5. <code>raw_verified_source_rows (Bronze 원천 Raw)</code><br />
+  6. <code>item_alias_mapping (동의어/별칭 사전)</code><br />
+  7. <code>daily_productivity_mart (일자별 생산성 Gold Mart)</code><br />
+  8. <code>item_difficulty_mart (품목별 난이도 Gold Mart)</code><br />
+  9. <code>buyer_summary_mart (바이어별 실적 Gold Mart)</code></li>
+<li><strong>선택 테이블 개요 카드 (순수 인라인 HTML 프리미엄 UI)</strong>:</li>
+<li>상단: 테이블명, Grain(데이터 단위), 레이어 뱃지, 테이블 타입 뱃지</li>
+<li>4대 미니 스탯: 📊 <strong>총 레코드 수</strong>, 📐 <strong>총 컬럼 수</strong>, 🔄 <strong>갱신 주기</strong>, 🎯 <strong>데이터 소스</strong></li>
+<li>스키마 정보: 🔑 <strong>기본키 (Primary Key)</strong>, 🔗 <strong>외래키 (Foreign Keys)</strong></li>
+<li><strong>컬럼 스키마 사전 (Column Dictionary)</strong>: 컬럼명, 한글 레이블, 데이터 타입, 업무 설명 표출.</li>
+<li><strong>실제 샘플 데이터 미리보기 (Top 5 Samples)</strong> 및 <strong>전체 데이터 CSV 다운로드</strong>.</li>
+</ul>
+<hr />
+<p><a id="sec-8" name="sec-8"></a></p>
+<h2 id="8-ux">8. 대시보드 조작 공통 규칙 및 UX 가이드라인</h2>
+<ol>
+<li><strong>차트 고정화 원칙 (Plotly Stationary Mode)</strong>:<br />
+   - 모든 탭의 Plotly 차트는 클릭하거나 드래그해도 축이 밀리거나 확대/축소되지 않도록 고정(<code>dragmode=False</code>, <code>fixedrange=True</code>)되어 있어 회의 및 보고 중 안정적인 조작이 보장됩니다.</li>
+<li><strong>툴팁(Hover) 열람법</strong>:<br />
+   - 차트의 막대, 파이 조각, 산점도 버블 위에 마우스를 올리면 흰색 배경에 깔끔한 글머리기호(•)로 정리된 다차원 세부 수치가 팝업됩니다.</li>
+<li><strong>표 정렬 및 검색</strong>:<br />
+   - 모든 테이블은 상단 검색창에 키워드(바이어명, 품목명, 국가 등)를 입력하면 실시간 필터링되며, 컬럼 헤더를 클릭하여 오름차순/내림차순 정렬이 가능합니다.</li>
+<li><strong>반응형 레이아웃</strong>:<br />
+   - 태블릿(iPad 등)이나 노트북 환경에서도 모든 카드와 지표가 깨지지 않고 최적의 비율로 유연하게 정렬됩니다.</li>
+</ol>
+    </article>
+
+  </main>
+
+  <!-- Floating Back to Top Button -->
+  <a href="#" class="back-to-top" id="backToTop" title="맨 위로 이동">▲</a>
+
+  <script>
+    // Copy code snippet function
+    function copyCode(btn) {
+      const codeBlock = btn.closest('.code-wrapper').querySelector('pre code');
+      if (!codeBlock) return;
+      navigator.clipboard.writeText(codeBlock.innerText).then(() => {
+        const prevText = btn.innerText;
+        btn.innerText = "복사됨! ✓";
+        btn.style.background = "#10b981";
+        btn.style.color = "#ffffff";
+        setTimeout(() => {
+          btn.innerText = prevText;
+          btn.style.background = "";
+          btn.style.color = "";
+        }, 1800);
+      });
+    }
+
+    // Real-time search filter
+    function handleSearch() {
+      const q = document.getElementById("searchInput").value.toLowerCase().trim();
+      const article = document.getElementById("articleContent");
+      const paragraphs = article.querySelectorAll("h1, h2, h3, h4, p, li, .code-wrapper, .table-container");
+
+      if (!q) {
+        paragraphs.forEach(el => el.style.display = "");
+        return;
+      }
+
+      paragraphs.forEach(el => {
+        const text = el.innerText.toLowerCase();
+        if (text.includes(q)) {
+          el.style.display = "";
+          el.style.backgroundColor = "rgba(254, 240, 138, 0.25)";
+        } else {
+          el.style.backgroundColor = "";
+        }
+      });
+    }
+
+    // Back to top visibility
+    window.addEventListener("scroll", () => {
+      const btn = document.getElementById("backToTop");
+      if (window.scrollY > 300) {
+        btn.classList.add("visible");
+      } else {
+        btn.classList.remove("visible");
+      }
+    });
+
+    // Active ScrollSpy for sidebar
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.getAttribute("id");
+          if (!id) return;
+          document.querySelectorAll(".nav-link").forEach(link => {
+            link.classList.toggle("active", link.getAttribute("href") === `#${id}`);
+          });
+        }
+      });
+    }, { rootMargin: "-20% 0px -70% 0px" });
+
+    document.querySelectorAll("h1[id], h2[id], h3[id], a[name], a[id]").forEach(el => {
+      observer.observe(el);
+    });
+  </script>
+</body>
+</html>

@@ -3735,22 +3735,22 @@ with tab5:
         with f_col1:
             lineage_filter = st.radio(
                 "🎯 분석 품목군 빠른 필터",
-                ["전체 다중 표기군 (187개)", "🔥 3종 이상 분열군 (17개)", "🚨 오타 교정군 (10개)", "⚠️ 띄어쓰기 편차군 (150개)"],
+                ["전체 다중 표기군 (187개)", "🔥 3종 이상 분열군 (17개)", "🚨 오타 교정군 (15개)", "⚠️ 띄어쓰기 편차군 (154개)"],
                 horizontal=True,
                 key="lineage_quick_filter"
             )
 
         if "3종 이상" in lineage_filter:
-            cand_items = variant_counts[variant_counts >= 3].index.tolist()
+            cand_items = [it["canon_name"] for it in items_catalog if it["variants_count"] >= 3]
         elif "오타 교정" in lineage_filter:
-            cand_items = lineage_df[lineage_df["consolidation_reason"].str.contains("오타")]["normalized_item_name"].unique().tolist()
+            cand_items = [it["canon_name"] for it in items_catalog if it["has_typo"]]
         elif "띄어쓰기" in lineage_filter:
-            cand_items = lineage_df[lineage_df["consolidation_reason"].str.contains("띄어쓰기")]["normalized_item_name"].unique().tolist()
+            cand_items = [it["canon_name"] for it in items_catalog if it["has_space"]]
         else:
-            cand_items = list(multi_variant_items.index)
+            cand_items = [it["canon_name"] for it in items_catalog]
 
         if not cand_items:
-            cand_items = list(multi_variant_items.index)
+            cand_items = [it["canon_name"] for it in items_catalog]
 
         default_idx = cand_items.index("The빠새") if "The빠새" in cand_items else 0
 
