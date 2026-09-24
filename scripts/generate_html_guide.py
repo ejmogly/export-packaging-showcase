@@ -64,11 +64,47 @@ def generate_guide_html():
         r'<span class="badge badge-danger">\1</span>',
         raw_html
     )
-    raw_html = re.sub(
-        r'<code>(🔥[^<]+)</code>',
-        r'<span class="badge badge-accent">\1</span>',
-        raw_html
-    )
+    # 4. Enhance Mathematical Formulas (Fractions, Sums, Financial Equations)
+    block_formula_html = """<div class="math-display-card">
+  <span class="math-term">필요 공수</span>
+  <span class="math-equal">=</span>
+  <span class="math-sym">&sum;</span>
+  <span class="math-paren">(</span>
+  <span class="math-fraction">
+    <span class="numerator">품목별 총 스티커수</span>
+    <span class="denominator">품목별 벤치마크 속도 (매/hr)</span>
+  </span>
+  <span class="math-paren">)</span>
+</div>"""
+
+    lines = []
+    for line in raw_html.splitlines():
+        if "필요 공수" in line and "$$" in line:
+            line = "   " + block_formula_html + "</li>"
+        lines.append(line)
+    raw_html = "\n".join(lines)
+
+    math_replacements = [
+        # Fractions
+        (r"$\frac{\text{총 스티커 수량}}{\text{총 투입 공수}}$", "<span class=\"math-fraction\"><span class=\"numerator\">총 스티커 수량</span><span class=\"denominator\">총 투입 공수</span></span>"),
+        (r"$\frac{\text{총 스티커 수량}}{\sum \text{worker_count}}$", "<span class=\"math-fraction\"><span class=\"numerator\">총 스티커 수량</span><span class=\"denominator\"><span class=\"math-sym\">&sum;</span> worker_count</span></span>"),
+        (r"$\frac{\text{공정 매출총이익}}{\text{총 출하 박스수}}$", "<span class=\"math-fraction\"><span class=\"numerator\">공정 매출총이익</span><span class=\"denominator\">총 출하 박스수</span></span>"),
+        # Summation & Financial formulas
+        (r"$\sum \text{sticker_qty}$", "<span class=\"math-expr\"><span class=\"math-sym\">&sum;</span> <code class=\"math-code\">sticker_qty</code></span>"),
+        (r"$\sum \text{row_man_hours}$", "<span class=\"math-expr\"><span class=\"math-sym\">&sum;</span> <code class=\"math-code\">row_man_hours</code></span>"),
+        (r"$\sum (\text{작업량} \times \text{적용 단가})$", "<span class=\"math-expr\"><span class=\"math-sym\">&sum;</span> (<span class=\"math-term\">작업량</span> &times; <span class=\"math-term\">적용 단가</span>)</span>"),
+        (r"$\sum (\text{소요 공수} \times \text{시급 13,000원})$", "<span class=\"math-expr\"><span class=\"math-sym\">&sum;</span> (<span class=\"math-term\">소요 공수</span> &times; <span class=\"math-term\">시급 13,000원</span>)</span>"),
+        (r"$\text{총 매출액} - \text{총 인건비 원가}$", "<span class=\"math-expr\"><span class=\"math-term\">총 매출액</span> &minus; <span class=\"math-term\">총 인건비 원가</span></span>"),
+        (r"$\text{입량} \times \text{작업수량} = \text{스티커수량}$", "<span class=\"math-expr\"><span class=\"math-term\">입량</span> &times; <span class=\"math-term\">작업수량</span> = <span class=\"math-term\">스티커수량</span></span>"),
+        (r"($\text{박스수} \times \text{입량}$)", "(<span class=\"math-term\">박스수</span> &times; <span class=\"math-term\">입량</span>)"),
+        (r"박스수$\times$입량", "<span class=\"math-term\">박스수</span> &times; <span class=\"math-term\">입량</span>"),
+        (r"투입 인원 $\times$ 8시간", "투입 인원 &times; 8시간"),
+        (r"$N$일", "<em>N</em>일"),
+        (r"Rank 6 $\rightarrow$ Rank 5 $\rightarrow$ Rank 4 $\rightarrow$ Rank 3 $\rightarrow$ Rank 2 $\rightarrow$ <strong>Rank 1 (최상단)</strong>", "Rank 6 &rarr; Rank 5 &rarr; Rank 4 &rarr; Rank 3 &rarr; Rank 2 &rarr; <strong>Rank 1 (최상단)</strong>")
+    ]
+
+    for src, dst in math_replacements:
+        raw_html = raw_html.replace(src, dst)
 
     full_html = f"""<!DOCTYPE html>
 <html lang="ko">
@@ -80,8 +116,28 @@ def generate_guide_html():
   <!-- Web Fonts -->
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+
+  <!-- MathJax v3 for Crisp Formula Rendering -->
+  <script>
+    window.MathJax = {{
+      tex: {{
+        inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
+        displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
+        processEscapes: true
+      }},
+      options: {{
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }},
+      chtml: {{
+        scale: 1.05
+      }}
+    }};
+  </script>
+  <script type="text/javascript" id="MathJax-script" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+  </script>
 
   <style>
     :root {{
@@ -570,6 +626,126 @@ def generate_guide_html():
 
     .guide-table tr:hover td {{
       background-color: #f8fafc;
+    }}
+
+    /* Math Formula Typography & Styling */
+    .math-expr {{
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #f0f7ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+      padding: 3px 9px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      vertical-align: middle;
+      line-height: 1.3;
+      white-space: nowrap;
+    }}
+
+    .math-sym {{
+      font-size: 16px;
+      font-weight: 800;
+      color: #2563eb;
+      line-height: 1;
+    }}
+
+    .math-term {{
+      color: #1e3a8a;
+      font-weight: 700;
+    }}
+
+    .math-code {{
+      font-family: var(--font-mono);
+      background: rgba(37, 99, 235, 0.08);
+      color: #1d4ed8;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 700;
+    }}
+
+    .math-fraction {{
+      display: inline-flex;
+      flex-direction: column;
+      vertical-align: middle;
+      text-align: center;
+      padding: 3px 8px;
+      background: #f0f7ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #1e3a8a;
+      line-height: 1.25;
+      min-width: 90px;
+    }}
+
+    .math-fraction .numerator {{
+      border-bottom: 1.5px solid #2563eb;
+      padding-bottom: 3px;
+      margin-bottom: 3px;
+      color: #1d4ed8;
+    }}
+
+    .math-fraction .denominator {{
+      color: #1e40af;
+    }}
+
+    .math-display-card {{
+      background: linear-gradient(135deg, #f0f7ff 0%, #e0f2fe 100%);
+      border: 1px solid #93c5fd;
+      border-radius: 12px;
+      padding: 20px 28px;
+      margin: 18px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e3a8a;
+      box-shadow: 0 4px 16px rgba(37, 99, 235, 0.08);
+    }}
+
+    .math-display-card .math-fraction {{
+      font-size: 13.5px;
+      background: #ffffff;
+      border: 1px solid #93c5fd;
+      padding: 5px 12px;
+    }}
+
+    .math-equal {{
+      font-size: 18px;
+      font-weight: 800;
+      color: #2563eb;
+      margin: 0 4px;
+    }}
+
+    .math-paren {{
+      font-size: 28px;
+      font-weight: 300;
+      color: #3b82f6;
+      line-height: 1;
+    }}
+
+    mjx-container {{
+      font-size: 108% !important;
+      color: #1e3a8a !important;
+      outline: none !important;
+      vertical-align: middle !important;
+    }}
+
+    mjx-container[jax="CHTML"][display="true"] {{
+      background: #f0f7ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 10px;
+      padding: 16px 24px;
+      margin: 18px 0;
+      overflow-x: auto;
+      box-shadow: 0 2px 8px rgba(30, 58, 138, 0.05);
     }}
 
     /* Floating Back-to-Top Button */

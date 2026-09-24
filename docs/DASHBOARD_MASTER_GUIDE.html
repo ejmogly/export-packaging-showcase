@@ -8,8 +8,28 @@
   <!-- Web Fonts -->
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+
+  <!-- MathJax v3 for Crisp Formula Rendering -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      },
+      chtml: {
+        scale: 1.05
+      }
+    };
+  </script>
+  <script type="text/javascript" id="MathJax-script" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+  </script>
 
   <style>
     :root {
@@ -500,6 +520,126 @@
       background-color: #f8fafc;
     }
 
+    /* Math Formula Typography & Styling */
+    .math-expr {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #f0f7ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+      padding: 3px 9px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      vertical-align: middle;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+
+    .math-sym {
+      font-size: 16px;
+      font-weight: 800;
+      color: #2563eb;
+      line-height: 1;
+    }
+
+    .math-term {
+      color: #1e3a8a;
+      font-weight: 700;
+    }
+
+    .math-code {
+      font-family: var(--font-mono);
+      background: rgba(37, 99, 235, 0.08);
+      color: #1d4ed8;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .math-fraction {
+      display: inline-flex;
+      flex-direction: column;
+      vertical-align: middle;
+      text-align: center;
+      padding: 3px 8px;
+      background: #f0f7ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #1e3a8a;
+      line-height: 1.25;
+      min-width: 90px;
+    }
+
+    .math-fraction .numerator {
+      border-bottom: 1.5px solid #2563eb;
+      padding-bottom: 3px;
+      margin-bottom: 3px;
+      color: #1d4ed8;
+    }
+
+    .math-fraction .denominator {
+      color: #1e40af;
+    }
+
+    .math-display-card {
+      background: linear-gradient(135deg, #f0f7ff 0%, #e0f2fe 100%);
+      border: 1px solid #93c5fd;
+      border-radius: 12px;
+      padding: 20px 28px;
+      margin: 18px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e3a8a;
+      box-shadow: 0 4px 16px rgba(37, 99, 235, 0.08);
+    }
+
+    .math-display-card .math-fraction {
+      font-size: 13.5px;
+      background: #ffffff;
+      border: 1px solid #93c5fd;
+      padding: 5px 12px;
+    }
+
+    .math-equal {
+      font-size: 18px;
+      font-weight: 800;
+      color: #2563eb;
+      margin: 0 4px;
+    }
+
+    .math-paren {
+      font-size: 28px;
+      font-weight: 300;
+      color: #3b82f6;
+      line-height: 1;
+    }
+
+    mjx-container {
+      font-size: 108% !important;
+      color: #1e3a8a !important;
+      outline: none !important;
+      vertical-align: middle !important;
+    }
+
+    mjx-container[jax="CHTML"][display="true"] {
+      background: #f0f7ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 10px;
+      padding: 16px 24px;
+      margin: 18px 0;
+      overflow-x: auto;
+      box-shadow: 0 2px 8px rgba(30, 58, 138, 0.05);
+    }
+
     /* Floating Back-to-Top Button */
     .back-to-top {
       position: fixed;
@@ -679,7 +819,7 @@
 <li><strong><code>당월 (9월)</code></strong>: 9월 1일부터 9월 15일까지의 최신 운영 실적을 집중 조회합니다.</li>
 <li><strong><code>전월 (8월)</code></strong>: 8월 1일부터 8월 31일까지의 월간 실적을 집중 조회합니다.</li>
 <li><strong>전기 비교 자동 연동 (Period-over-Period Delta)</strong>:</li>
-<li>사용자가 선택한 기간의 일수($N$일)를 계산하여, <strong>동일한 일수만큼의 바로 직전 기간($N$일)</strong> 데이터를 자동으로 대조해 모든 KPI 카드의 상단 뱃지(▲/▼)에 증감률과 증감량을 자동 표시합니다.</li>
+<li>사용자가 선택한 기간의 일수(<em>N</em>일)를 계산하여, <strong>동일한 일수만큼의 바로 직전 기간(<em>N</em>일)</strong> 데이터를 자동으로 대조해 모든 KPI 카드의 상단 뱃지(▲/▼)에 증감률과 증감량을 자동 표시합니다.</li>
 </ul>
 <h3 id="13-smart-jump">1.3 지능형 비가동일 감지 및 스마트 점프 (Smart Jump)</h3>
 <ul>
@@ -711,25 +851,25 @@
 <tbody>
 <tr>
 <td style="text-align: left;"><strong>총 부착 스티커 수량</strong></td>
-<td style="text-align: left;">$\sum \text{sticker_qty}$</td>
+<td style="text-align: left;"><span class="math-expr"><span class="math-sym">&sum;</span> <code class="math-code">sticker_qty</code></span></td>
 <td style="text-align: center;">매</td>
 <td style="text-align: left;">• 실제 낱개 제품 표면에 부착된 라벨 스티커 총수량.<br/>• 상단 뱃지는 동일 일수 직전 기간 대비 증감률(%).<br/>• 하단 보조 지표로 함께 포장된 <strong>총 출하 박스수</strong>가 표시되어 박스당 입량 밀도를 파악 가능.</td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>총 투입 공수 (Man-Hours)</strong></td>
-<td style="text-align: left;">$\sum \text{row_man_hours}$</td>
+<td style="text-align: left;"><span class="math-expr"><span class="math-sym">&sum;</span> <code class="math-code">row_man_hours</code></span></td>
 <td style="text-align: center;">인·시</td>
-<td style="text-align: left;">• 현장 작업 인력의 실제 누적 가동 공수.<br/>• 일자별 투입 인원 $\times$ 8시간(정규)을 오더별 스티커 작업량에 비례 배분한 값.<br/>• 하단에 <strong>총 가동일수</strong> 및 <strong>일평균 투입 인원(명/일)</strong> 표시.</td>
+<td style="text-align: left;">• 현장 작업 인력의 실제 누적 가동 공수.<br/>• 일자별 투입 인원 &times; 8시간(정규)을 오더별 스티커 작업량에 비례 배분한 값.<br/>• 하단에 <strong>총 가동일수</strong> 및 <strong>일평균 투입 인원(명/일)</strong> 표시.</td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>시간당 스티커 생산성</strong></td>
-<td style="text-align: left;">$\frac{\text{총 스티커 수량}}{\text{총 투입 공수}}$</td>
+<td style="text-align: left;"><span class="math-fraction"><span class="numerator">총 스티커 수량</span><span class="denominator">총 투입 공수</span></span></td>
 <td style="text-align: center;">매/hr</td>
 <td style="text-align: left;">• 현장 전체의 1인 1시간당 평균 라벨 부착 속도.<br/>• <strong>벤치마크</strong>: 180~200매/hr 이상이면 양호, 150매/hr 미만이면 고난이도 오더 집중 또는 공정 병목 발생 징후.</td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>인당 일일 평균 생산량</strong></td>
-<td style="text-align: left;">$\frac{\text{총 스티커 수량}}{\sum \text{worker_count}}$</td>
+<td style="text-align: left;"><span class="math-fraction"><span class="numerator">총 스티커 수량</span><span class="denominator"><span class="math-sym">&sum;</span> worker_count</span></span></td>
 <td style="text-align: center;">매/인</td>
 <td style="text-align: left;">• 작업자 1명이 하루(8시간) 동안 완수한 평균 부착 수량.<br/>• 2,000~2,500매/인 수준이면 표준적인 일일 달성량.</td>
 </tr>
@@ -813,7 +953,7 @@
 <li><strong>전체 기간 실적 분석 체크박스</strong>: 사이드바의 단기 날짜와 무관하게 2026년 전체 9개월 데이터로 장기 트렌드를 볼 수 있는 기능.</li>
 <li><strong>집계 주기 선택</strong>: <code>월별 추이 (Monthly)</code> vs <code>분기별 추이 (Quarterly: 2026Q1, Q2, Q3)</code>.</li>
 <li><strong>차트 바 스택 순서 (Bottom to Top)</strong>:</li>
-<li>차트의 맨 바닥(base=0)에 <strong>'기타 바이어'</strong>가 위치하고, 그 위로 Rank 6 $\rightarrow$ Rank 5 $\rightarrow$ Rank 4 $\rightarrow$ Rank 3 $\rightarrow$ Rank 2 $\rightarrow$ <strong>Rank 1 (최상단)</strong> 순으로 적층됩니다.</li>
+<li>차트의 맨 바닥(base=0)에 <strong>'기타 바이어'</strong>가 위치하고, 그 위로 Rank 6 &rarr; Rank 5 &rarr; Rank 4 &rarr; Rank 3 &rarr; Rank 2 &rarr; <strong>Rank 1 (최상단)</strong> 순으로 적층됩니다.</li>
 <li><strong>통합 호버 툴팁 순서 및 수치 정합성 (Top to Bottom)</strong>:</li>
 <li>마우스를 올리면 <code>hoversort="trace"</code>에 따라 <strong>Rank 1 바이어가 최상단</strong>, <strong>기타 바이어가 최하단</strong>에 나열됩니다.</li>
 <li><strong>정합성 보정 원리</strong>: 각 trace에 <code>customdata</code>를 바인딩하여, 당월 발주가 없는 바이어는 정확히 <code>0 매</code>로 표출되며, 실제 발주한 수량만 정직하게 출력됩니다.<br />
@@ -886,7 +1026,7 @@
 <h4 id="1-stdata_editor">1) 새 오더 직접 입력 테이블 (<code>st.data_editor</code>)</h4>
 <ul>
 <li>사용자가 표에서 직접 품목명을 검색/선택하고, <strong>작업수량(출하 박스수)</strong>과 <strong>입량(개/박스)</strong>을 기입합니다.</li>
-<li>행 추가/삭제가 자유로우며 실시간으로 총 스티커 매수($\text{박스수} \times \text{입량}$)가 계산됩니다.</li>
+<li>행 추가/삭제가 자유로우며 실시간으로 총 스티커 매수(<span class="math-term">박스수</span> &times; <span class="math-term">입량</span>)가 계산됩니다.</li>
 </ul>
 <h4 id="2">2) 현장 인력 및 근무 파라미터 슬라이더</h4>
 <ul>
@@ -899,7 +1039,17 @@
 <ol>
 <li><strong>총 예정 작업량</strong>: 입력된 오더의 총 스티커 매수 및 출하 박스수 (평균 입량 표시).</li>
 <li><strong>필요 총 공수 (Man-Hours)</strong>: 과거 실제 작업일지에서 집계된 <strong>해당 품목의 누적 벤치마크 속도(매/hr)</strong>를 적용해 산출한 순수 필요 인·시.<br />
-   $$\text{필요 공수} = \sum \left( \frac{\text{품목별 총 스티커수}}{\text{품목별 벤치마크 속도(매/hr)}} \right)$$</li>
+   <div class="math-display-card">
+  <span class="math-term">필요 공수</span>
+  <span class="math-equal">=</span>
+  <span class="math-sym">&sum;</span>
+  <span class="math-paren">(</span>
+  <span class="math-fraction">
+    <span class="numerator">품목별 총 스티커수</span>
+    <span class="denominator">품목별 벤치마크 속도 (매/hr)</span>
+  </span>
+  <span class="math-paren">)</span>
+</div></li>
 <li><strong>목표 기한 권장 인원</strong>: 데드라인 내 완수를 위해 투입해야 할 최소 작업자 수. 현재 가용 인원과 비교하여 <code>▲ 납기 안전</code> 또는 <code>▼ N명 부족 (인력 충원 필요)</code> 뱃지가 점등됩니다.</li>
 <li><strong>현재 팀 예상 납기</strong>: 현재 인원과 잔업 시간 설정으로 작업했을 때 완제품 출하까지 걸리는 소요 일수. 잔업 설정 시 <code>▲ 잔업으로 N일 단축</code> 효과가 실시간 표출됩니다.</li>
 </ol>
@@ -935,25 +1085,25 @@
 <tbody>
 <tr>
 <td style="text-align: left;"><strong>💵 총 추정 매출액</strong></td>
-<td style="text-align: left;">$\sum (\text{작업량} \times \text{적용 단가})$</td>
+<td style="text-align: left;"><span class="math-expr"><span class="math-sym">&sum;</span> (<span class="math-term">작업량</span> &times; <span class="math-term">적용 단가</span>)</span></td>
 <td style="text-align: center;">원</td>
 <td style="text-align: left;">바이어에게 청구할 수 있는 임가공 수수료 총액.</td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>👷 총 투입 인건비 원가</strong></td>
-<td style="text-align: left;">$\sum (\text{소요 공수} \times \text{시급 13,000원})$</td>
+<td style="text-align: left;"><span class="math-expr"><span class="math-sym">&sum;</span> (<span class="math-term">소요 공수</span> &times; <span class="math-term">시급 13,000원</span>)</span></td>
 <td style="text-align: center;">원</td>
 <td style="text-align: left;">작업을 수행하는 데 지급된 순수 작업자 직접 인건비.</td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>📈 공정 매출총이익</strong></td>
-<td style="text-align: left;">$\text{총 매출액} - \text{총 인건비 원가}$</td>
+<td style="text-align: left;"><span class="math-expr"><span class="math-term">총 매출액</span> &minus; <span class="math-term">총 인건비 원가</span></span></td>
 <td style="text-align: center;">원</td>
 <td style="text-align: left;">• 임가공 매출에서 인건비를 뺀 공정 영업 이익.<br/>• 흑자 시 <strong>초록색(+)</strong>, 적자 시 <strong>빨간색(-)</strong> 표시.<br/>• 보조 지표로 <strong>매출총이익률(Gross Margin %)</strong> 표출.</td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>📦 박스당 평균 공정 마진</strong></td>
-<td style="text-align: left;">$\frac{\text{공정 매출총이익}}{\text{총 출하 박스수}}$</td>
+<td style="text-align: left;"><span class="math-fraction"><span class="numerator">공정 매출총이익</span><span class="denominator">총 출하 박스수</span></span></td>
 <td style="text-align: center;">원/박스</td>
 <td style="text-align: left;">출하 완제품 박스 1개를 포장할 때마다 순수하게 남는 마진.</td>
 </tr>
@@ -997,7 +1147,7 @@
 <ol>
 <li><strong>데이터 무결성 통과율 (완벽 행)</strong>:<br />
    - <strong>수치</strong>: <code>87.33%</code> (뱃지: <code>2,784건 정상 (87.33%)</code>)<br />
-   - <strong>의미</strong>: 전체 3,188행 중 $\text{입량} \times \text{작업수량} = \text{스티커수량}$ 공식이 오차 없이 100% 일치한 행의 비율.</li>
+   - <strong>의미</strong>: 전체 3,188행 중 <span class="math-expr"><span class="math-term">입량</span> &times; <span class="math-term">작업수량</span> = <span class="math-term">스티커수량</span></span> 공식이 오차 없이 100% 일치한 행의 비율.</li>
 <li><strong>품목 마스터 매칭률</strong>:<br />
    - <strong>수치</strong>: <code>100.0%</code> (뱃지: <code>434 SKUs 매칭</code>)<br />
    - <strong>의미</strong>: 현장 수기 품목명이 4단계 표준화 엔진을 거쳐 표준 상품 마스터에 100% 정상 매핑되어 미매칭 품목 0건 달성.</li>
@@ -1014,7 +1164,7 @@
 <ul>
 <li><strong>목적</strong>: 404건의 수량 불일치 데이터를 전수 분리하여 현장 실물 원장 대조 및 감사를 진행합니다.</li>
 <li><strong>오차 유형 분류</strong>:</li>
-<li><code>📈 기록치 초과 (기록 &gt; 계산)</code>: 일지 스티커수가 박스수$\times$입량보다 크게 기재된 경우 (여분 라벨, 로스분 포함 기재 의심).</li>
+<li><code>📈 기록치 초과 (기록 &gt; 계산)</code>: 일지 스티커수가 <span class="math-term">박스수</span> &times; <span class="math-term">입량</span>보다 크게 기재된 경우 (여분 라벨, 로스분 포함 기재 의심).</li>
 <li><code>📉 기록치 미달 (기록 &lt; 계산)</code>: 일지 스티커수가 작게 기재된 경우 (자릿수 탈락, 묶음 단위 부분 부착 의심).</li>
 <li><strong>기능</strong>: 검색창(품목명/바이어), 오차 유형 셀렉트 필터, <strong>수량 불일치 내역 CSV 다운로드 버튼</strong> 제공.</li>
 </ul>
@@ -1037,7 +1187,7 @@
   3. <code>구출된 작업 실적 (매)</code>: 수기 편차로 분열될 뻔한 실적 완벽 구출 (누락율 0.00% 달성)<br />
   4. <code>마스터 무결성 달성도 (100.0%)</code>: 원천 3,188개 전수 매핑 완결</li>
 <li><strong>분석 품목군 빠른 필터 (Quick Filter)</strong>:</li>
-<li><code>전체 다중 표기군 (187개)</code>, <span class="badge badge-accent">🔥 3종 이상 분열군 (17개)</span>, <span class="badge badge-danger">🚨 오타 교정군 (15개)</span>, <span class="badge badge-warning">⚠️ 띄어쓰기 편차군 (154개)</span> 라디오 버튼을 통해 원하는 품목군을 1초 만에 전환 필터링.</li>
+<li><code>전체 다중 표기군 (187개)</code>, <code>🔥 3종 이상 분열군 (17개)</code>, <span class="badge badge-danger">🚨 오타 교정군 (15개)</span>, <span class="badge badge-warning">⚠️ 띄어쓰기 편차군 (154개)</span> 라디오 버튼을 통해 원하는 품목군을 1초 만에 전환 필터링.</li>
 <li><strong>2대 뷰 모드 (View Modes)</strong>:</li>
 <li>✨ <strong>인터랙티브 네온 계보 스튜디오 (Interactive Lineage Studio)</strong>: 고대비 네온 다크 HUD 캔버스 상에서 원천 수기 표기 ➔ 적용된 정규화 규칙 ➔ 최종 표준 품목 마스터 3단계를 유기적으로 잇는 SVG 동적 베지어 리본(Bezier Ribbons) 시각화. 노드나 규칙을 클릭하면 연결된 데이터 흐름이 네온 불빛으로 즉시 활성화되고 비연관 노드는 반투명 딤(Dim) 처리되는 양방향 인터랙션, 상단 HUD 실시간 통계 인스펙터, 실시간 키워드 검색창 제공.</li>
 <li>📋 <strong>187개 다중 표기군 전수 통합 매트릭스</strong>: 원천 수기 기입명, 공식 표준 마스터명, 적용된 정규화 규칙, 발생 건수, 작업 수량(매), 최초/최근 발생일 전수 감사 테이블.</li>
