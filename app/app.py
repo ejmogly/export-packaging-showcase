@@ -3947,7 +3947,7 @@ with tab6:
                 <span class="badge badge-pos">집계 실시간 가동</span>
                 <div class="metric-sub">일자·품목·바이어·시뮬레이터</div>
             </div>
-            <div class="metric-desc">ℹ️ 경영진 KPI 분석 및 주간 리포트 서빙</div>
+            <div class="metric-desc">ℹ️ 경영진 KPI 분석 및 월간 결산 리포트 서빙</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -4083,7 +4083,7 @@ with tab6:
                 bgcolor="#f0fdfa";
 
                 serving_app [label="📊 Streamlit 대시보드 (6개 탭)\\n(실시간 인터랙티브 분석)", fillcolor="#ffffff", color="#0d9488"];
-                serving_mail [label="📧 GitHub Actions 주간 리포트\\n(매주 월요일 09:00 자동 발송)", fillcolor="#ffffff", color="#0d9488"];
+                serving_mail [label="📧 GitHub Actions 월간 결산 리포트\n(매월 1일 09:00 발송 & 말일 사전 점검)", fillcolor="#ffffff", color="#0d9488"];
             }}
 
             src_sheet -> raw_bronze [label="Live CSV Ingestion", color="#ea580c"];
@@ -4131,7 +4131,7 @@ with tab6:
                     <strong>Stage 5. Gold Analytics Marts:</strong> 일자별 생산성(<strong>{n_days:,}일 가동</strong>), 품목별 벤치마크 속도/난이도, 바이어별 점유율, 공수 예측 모델
                 </div>
                 <div style="background: #f0fdfa; border: 1px solid #99f6e4; border-left: 5px solid #0d9488; border-radius: 6px; padding: 12px 16px;">
-                    <strong>Stage 6. 서빙 및 액션:</strong> Streamlit 대시보드 (6개 탭 실시간 서빙) + GitHub Actions 주간 자동 리포트
+                    <strong>Stage 6. 서빙 및 액션:</strong> Streamlit 대시보드 (6개 탭 실시간 서빙) + GitHub Actions 월간 결산 리포트 (말일 사전 점검 & 매월 1일 자동 발송)
                 </div>
             </div>
             """, unsafe_allow_html=True)
