@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional, Tuple
 
 from src.transformation.silver_pipeline import build_silver_layer
 from src.analytics.gold_pipeline import GoldAnalyticsPipeline
+from src.reporting.dispatch_auditor import DispatchAuditor
 
 
 def _load_env_fallback():
@@ -693,18 +694,30 @@ def run_monthly_email_pipeline(
             subj, html_c, text_c = generate_monthly_missing_alert(details, is_precheck=True)
             return send_email_report(html_content=html_c, subject=subj, text_content=text_c, recipient_emails=recipient_emails)
     else:
-        today = datetime.now().date()
-        if today.day != 1 and not force:
-            print(f"[Monthly Dispatch] Today ({today}) is day {today.day}, not the 1st of the month. Skipping dispatch (use --force to override).")
+        t_month = details.get("target_month") if is_ready else target_month
+        auditor = DispatchAuditor()
+        is_approved, audit_msg, meta = auditor.audit_monthly_dispatch(target_month=t_month, force=force)
+        print(f"[Audit Gate] {audit_msg}")
+        if not is_approved:
+            print("[Audit Gate] Halting execution as audit did not approve dispatch.")
             return True
 
         if is_ready or force:
             print("[Monthly Dispatch] Generating full monthly closing operations report...")
-            t_month = details.get("target_month") if is_ready else target_month
             html, stats = generate_monthly_report_html(silver_df, target_month=t_month)
             text, _ = generate_monthly_report_text(silver_df, target_month=t_month)
             subject = f"📊 [월간 운영 결산] {stats.get('target_month', '')} 실적 보고 ({stats.get('total_stickers', 0):,}매 출하)"
-            return send_email_report(html_content=html, subject=subject, text_content=text, recipient_emails=recipient_emails)
+            sent_ok = send_email_report(html_content=html, subject=subject, text_content=text, recipient_emails=recipient_emails)
+            if sent_ok:
+                auditor.record_dispatch(
+                    target_month=t_month,
+                    report_type="monthly",
+                    recipients=recipient_emails or [e.strip() for e in os.getenv("RECIPIENT_EMAILS", "").split(",") if e.strip()],
+                    kpi_summary=stats,
+                    status="SUCCESS",
+                    note="Dispatched after audit gate approval"
+                )
+            return sent_ok
         else:
             print("[Monthly Dispatch] Target month data is MISSING! Sending Hold Notice alert email...")
             subj, html_c, text_c = generate_monthly_missing_alert(details, is_precheck=False)
