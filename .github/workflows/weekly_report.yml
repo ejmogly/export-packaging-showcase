@@ -34,11 +34,14 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           RECIPIENT_EMAILS: ${{ secrets.RECIPIENT_EMAILS }}
         run: |
-          CURRENT_HOUR=$(date -u +%H)
-          if [ "$CURRENT_HOUR" = "11" ]; then
+          # Use GitHub event schedule context to reliably distinguish precheck from 1st-of-month dispatch
+          if [ "${{ github.event.schedule }}" = "50 11 28-31 * *" ]; then
             echo "Running end-of-month pre-flight readiness check (20:50 KST)..."
             python -m src.reporting.email_reporter --precheck
-          else
+          elif [ "${{ github.event.schedule }}" = "0 0 1 * *" ]; then
             echo "Running monthly operations closing dispatch (09:00 KST on 1st)..."
+            python -m src.reporting.email_reporter
+          else
+            echo "Manual or fallback trigger (event: ${{ github.event_name }})..."
             python -m src.reporting.email_reporter
           fi

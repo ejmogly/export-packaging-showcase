@@ -693,6 +693,11 @@ def run_monthly_email_pipeline(
             subj, html_c, text_c = generate_monthly_missing_alert(details, is_precheck=True)
             return send_email_report(html_content=html_c, subject=subj, text_content=text_c, recipient_emails=recipient_emails)
     else:
+        today = datetime.now().date()
+        if today.day != 1 and not force:
+            print(f"[Monthly Dispatch] Today ({today}) is day {today.day}, not the 1st of the month. Skipping dispatch (use --force to override).")
+            return True
+
         if is_ready or force:
             print("[Monthly Dispatch] Generating full monthly closing operations report...")
             t_month = details.get("target_month") if is_ready else target_month
