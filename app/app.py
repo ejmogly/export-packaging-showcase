@@ -70,6 +70,41 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+def inject_microsoft_clarity():
+    """Injects Microsoft Clarity tracking script if configured in st.secrets or os.environ."""
+    clarity_id = None
+    try:
+        if "CLARITY_PROJECT_ID" in st.secrets:
+            clarity_id = st.secrets["CLARITY_PROJECT_ID"]
+    except Exception:
+        pass
+    if not clarity_id:
+        clarity_id = os.getenv("CLARITY_PROJECT_ID")
+
+    if clarity_id:
+        clarity_snippet = f"""
+        <script type="text/javascript">
+            try {{
+                var w = window.parent || window;
+                var d = window.parent.document || document;
+                (function(c,l,a,r,i,t,y){{
+                    c[a]=c[a]||function(){{(c[a].q=c[a].q||[]).push(arguments)}};
+                    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+                }})(w, d, "clarity", "script", "{clarity_id}");
+            }} catch(e) {{
+                (function(c,l,a,r,i,t,y){{
+                    c[a]=c[a]||function(){{(c[a].q=c[a].q||[]).push(arguments)}};
+                    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+                }})(window, document, "clarity", "script", "{clarity_id}");
+            }}
+        </script>
+        """
+        components.html(clarity_snippet, height=0, width=0)
+
+inject_microsoft_clarity()
+
 # Custom CSS for Premium Look
 st.markdown("""
 <style>
