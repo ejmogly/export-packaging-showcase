@@ -71,7 +71,7 @@ st.set_page_config(
 )
 
 def inject_microsoft_clarity():
-    """Injects Microsoft Clarity tracking script if configured in st.secrets or os.environ."""
+    """Injects Microsoft Clarity tracking script for heatmaps, session recordings, and click analysis."""
     clarity_id = None
     try:
         if "CLARITY_PROJECT_ID" in st.secrets:
@@ -79,7 +79,7 @@ def inject_microsoft_clarity():
     except Exception:
         pass
     if not clarity_id:
-        clarity_id = os.getenv("CLARITY_PROJECT_ID")
+        clarity_id = os.getenv("CLARITY_PROJECT_ID", "yqo21pjeyh")
 
     if clarity_id:
         clarity_snippet = f"""
@@ -87,17 +87,23 @@ def inject_microsoft_clarity():
             try {{
                 var w = window.parent || window;
                 var d = window.parent.document || document;
-                (function(c,l,a,r,i,t,y){{
-                    c[a]=c[a]||function(){{(c[a].q=c[a].q||[]).push(arguments)}};
-                    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-                }})(w, d, "clarity", "script", "{clarity_id}");
+                if (!w.clarity_initialized) {{
+                    w.clarity_initialized = true;
+                    (function(c,l,a,r,i,t,y){{
+                        c[a]=c[a]||function(){{(c[a].q=c[a].q||[]).push(arguments)}};
+                        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+                    }})(w, d, "clarity", "script", "{clarity_id}");
+                }}
             }} catch(e) {{
-                (function(c,l,a,r,i,t,y){{
-                    c[a]=c[a]||function(){{(c[a].q=c[a].q||[]).push(arguments)}};
-                    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-                }})(window, document, "clarity", "script", "{clarity_id}");
+                if (!window.clarity_initialized) {{
+                    window.clarity_initialized = true;
+                    (function(c,l,a,r,i,t,y){{
+                        c[a]=c[a]||function(){{(c[a].q=c[a].q||[]).push(arguments)}};
+                        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+                    }})(window, document, "clarity", "script", "{clarity_id}");
+                }}
             }}
         </script>
         """
