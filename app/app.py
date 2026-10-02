@@ -105,24 +105,34 @@ def inject_microsoft_clarity():
     except Exception:
         pass
 
-    # Method 2: Dynamic runtime injection into parent window document with console log
+    # Method 2: Multi-target runtime injection (targets window, parent, and top window)
     clarity_snippet = f"""
     <script type="text/javascript">
         (function() {{
-            try {{
-                var w = window.parent || window;
-                var d = window.parent.document || document;
-                if (!w._clarity_injected) {{
-                    w._clarity_injected = true;
-                    (function(c,l,a,r,i,t,y){{
-                        c[a]=c[a]||function(){{(c[a].q=c[a].q||[]).push(arguments)}};
-                        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-                    }})(w, d, "clarity", "script", "{clarity_id}");
-                    console.log("[Microsoft Clarity] Tracking successfully injected for project: {clarity_id}");
+            var targets = [window, window.parent, window.top];
+            var injectedAny = false;
+            for (var idx = 0; idx < targets.length; idx++) {{
+                try {{
+                    var targetWin = targets[idx];
+                    if (targetWin && targetWin.document) {{
+                        var d = targetWin.document;
+                        if (!targetWin.clarity) {{
+                            (function(c,l,a,r,i,t,y){{
+                                c[a]=c[a]||function(){{(c[a].q=c[a].q||[]).push(arguments)}};
+                                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                                y=l.getElementsByTagName(r)[0] || l.head.firstChild;
+                                if (y) {{ y.parentNode.insertBefore(t,y); }}
+                                else {{ l.head.appendChild(t); }}
+                            }})(targetWin, d, "clarity", "script", "{clarity_id}");
+                            injectedAny = true;
+                        }}
+                    }}
+                }} catch(e) {{
+                    // Skip cross-origin frames if blocked
                 }}
-            }} catch(e) {{
-                console.warn("[Microsoft Clarity] Cross-frame injection error:", e);
+            }}
+            if (injectedAny) {{
+                console.log("[Microsoft Clarity] Injected to target windows for project: {clarity_id}");
             }}
         }})();
     </script>
