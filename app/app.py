@@ -71,7 +71,7 @@ st.set_page_config(
 )
 
 def inject_microsoft_clarity():
-    """Injects Microsoft Clarity tracking script for heatmaps, session recordings, and click analysis."""
+    """Injects Microsoft Clarity tracking script directly into index.html and parent window."""
     clarity_id = None
     try:
         if "CLARITY_PROJECT_ID" in st.secrets:
@@ -81,33 +81,53 @@ def inject_microsoft_clarity():
     if not clarity_id:
         clarity_id = os.getenv("CLARITY_PROJECT_ID", "yqo21pjeyh")
 
-    if clarity_id:
-        clarity_snippet = f"""
-        <script type="text/javascript">
+    if not clarity_id:
+        return
+
+    # Method 1: Patch Streamlit's static index.html on server so top-level <head> contains the script
+    try:
+        import pathlib
+        static_index = pathlib.Path(st.__file__).parent / "static" / "index.html"
+        if static_index.exists():
+            content = static_index.read_text(encoding="utf-8")
+            if clarity_id not in content:
+                tag = f"""    <!-- Microsoft Clarity Tracking Code -->
+    <script type="text/javascript">
+        (function(c,l,a,r,i,t,y){{
+            c[a]=c[a]||function(){{(c[a].q=c[a].q||[]).push(arguments)}};
+            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        }})(window, document, "clarity", "script", "{clarity_id}");
+    </script>
+</head>"""
+                if "</head>" in content:
+                    static_index.write_text(content.replace("</head>", tag, 1), encoding="utf-8")
+    except Exception:
+        pass
+
+    # Method 2: Dynamic runtime injection into parent window document with console log
+    clarity_snippet = f"""
+    <script type="text/javascript">
+        (function() {{
             try {{
                 var w = window.parent || window;
                 var d = window.parent.document || document;
-                if (!w.clarity_initialized) {{
-                    w.clarity_initialized = true;
+                if (!w._clarity_injected) {{
+                    w._clarity_injected = true;
                     (function(c,l,a,r,i,t,y){{
                         c[a]=c[a]||function(){{(c[a].q=c[a].q||[]).push(arguments)}};
                         t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
                         y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
                     }})(w, d, "clarity", "script", "{clarity_id}");
+                    console.log("[Microsoft Clarity] Tracking successfully injected for project: {clarity_id}");
                 }}
             }} catch(e) {{
-                if (!window.clarity_initialized) {{
-                    window.clarity_initialized = true;
-                    (function(c,l,a,r,i,t,y){{
-                        c[a]=c[a]||function(){{(c[a].q=c[a].q||[]).push(arguments)}};
-                        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-                    }})(window, document, "clarity", "script", "{clarity_id}");
-                }}
+                console.warn("[Microsoft Clarity] Cross-frame injection error:", e);
             }}
-        </script>
-        """
-        components.html(clarity_snippet, height=0, width=0)
+        }})();
+    </script>
+    """
+    components.html(clarity_snippet, height=0, width=0)
 
 inject_microsoft_clarity()
 
