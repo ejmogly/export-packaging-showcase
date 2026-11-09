@@ -72,7 +72,7 @@
   * `active_days`: 가동 일수
   * `total_boxes`: 바이어별 총 출하 박스 수
   * `total_stickers`: 바이어별 총 스티커 수량
-  * `allocated_man_hours`: 비례 배분된 투입 공수 (인·시)
+  * `allocated_man_hours`: 비례 배분된 투입 공수 (인시)
   * `distinct_items`: 취급 SKU 품목 수
   * `sticker_share_pct`: 전체 출하량 대비 스티커 점유율 (%)
   * `box_share_pct`: 전체 출하량 대비 박스 점유율 (%)
@@ -87,7 +87,7 @@
   * `active_days`: 가동 일수
   * `total_boxes`: 국가별 총 출하 박스 수
   * `total_stickers`: 국가별 총 스티커 수량
-  * `allocated_man_hours`: 국가별 투입 공수 (인·시)
+  * `allocated_man_hours`: 국가별 투입 공수 (인시)
   * `distinct_buyers`: 거래 바이어 수
   * `distinct_items`: 취급 SKU 품목 수
   * `sticker_share_pct`: 전체 대비 스티커 점유율 (%)
@@ -100,7 +100,7 @@
   * `order_count`: 누적 작업 건수
   * `total_boxes`: 누적 출하 박스 수
   * `total_stickers`: 누적 부착 스티커 수량
-  * `allocated_man_hours`: 누적 투입 공수 (인·시)
+  * `allocated_man_hours`: 누적 투입 공수 (인시)
   * `stickers_per_hour`: 카테고리별 시간당 평균 부착 속도 (매/hr)
 
 ### 3.6 `financial_margin_mart` (임가공 단가 & 마진 채산성 마트)

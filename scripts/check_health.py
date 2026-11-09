@@ -88,7 +88,7 @@ def check_data_pipeline(today):
     dates = df["work_date"].dropna().astype(str)
     min_d, max_d = dates.min(), dates.max()
     latest = datetime.strptime(max_d[:10], "%Y-%m-%d").date()
-    gap = int(np.busday_count(np.datetime64(latest) + 1, np.datetime64(today))) if latest < today else 0
+    gap = int(np.busday_count(np.datetime64(latest) + np.timedelta64(1, "D"), np.datetime64(today))) if latest < today else 0
     detail = f"최신 작업일 {max_d[:10]} / 그 이후 경과 평일 {gap}일 (공휴일 미반영)"
     if showcase_mode:
         record(sec, "INFO", "데이터 최신성: 쇼케이스는 고정 데이터라 판정 생략", detail)
@@ -142,7 +142,7 @@ def check_unit_tests():
         by_file.setdefault(mod, []).append(tid)
     for mod, ids in by_file.items():
         n_bad = sum(1 for i in ids if i in bad)
-        print(f"     · {mod}.py: {len(ids) - n_bad}/{len(ids)} 통과")
+        print(f"     - {mod}.py: {len(ids) - n_bad}/{len(ids)} 통과")
 
     if not bad and result.testsRun == len(all_ids):
         record(sec, "PASS", f"단위 테스트 {result.testsRun}/{len(all_ids)} 통과")

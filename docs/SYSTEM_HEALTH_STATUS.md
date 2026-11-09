@@ -29,7 +29,7 @@
 | **01** | `test_01_bronze_layer_loading` | 원천 데이터 수집 | Google Sheets 및 백업 데이터 정상 로드 및 원본 보존 여부 | 🟢 PASS |
 | **02** | `test_02_schema_and_types` | 스키마 & 데이터 타입 | 작업일자(datetime), 수량(int), 인원(float) 등 필수 컬럼 유효성 | 🟢 PASS |
 | **03** | `test_03_item_name_normalization` | 품목명 3-Tier 정규화 | 오타/띄어쓰기 187개 분열군 100% 매핑 및 카테고리 계층 할당 | 🟢 PASS |
-| **04** | `test_04_buyer_normalization` | 바이어 마스터 매핑 | 영문/약칭 바이어 표준화 및 5대 대륙·21개국 수출 권역 연계 | 🟢 PASS |
+| **04** | `test_04_buyer_normalization` | 바이어 마스터 매핑 | 영문/약칭 바이어 표준화 및 5대 대륙 및 21개국 수출 권역 연계 | 🟢 PASS |
 | **05** | `test_05_quantity_consistency` | 수량 계산 정합성 | $스티커수량 = 작업박스수량 \times 박스입량$ 수치 불일치 100% 감지 | 🟢 PASS |
 | **06** | `test_06_man_hours_and_productivity`| 공수 및 생산성 지표 | 작업자 결측치 보정, 일별 공수 비례 배분 및 매/hr 계산 | 🟢 PASS |
 | **07** | `test_07_gold_layer_aggregation` | 골드 레이어 다차원 집계 | 월별, 제조사별, 바이어별, 카테고리별 다차원 집계 일치성 | 🟢 PASS |

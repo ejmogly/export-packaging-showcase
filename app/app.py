@@ -425,12 +425,13 @@ except Exception as e:
     st.stop()
 
 
-def set_date_range_callback(target_start, target_end):
-    """Safely updates start_date and end_date in Streamlit session state during callback phase."""
+def set_date_range_callback(target_start, target_end, preset_mode: str = "custom"):
+    """Safely updates start_date, end_date, and active preset mode in Streamlit session state."""
     d_start = pd.to_datetime(target_start).date()
     d_end = pd.to_datetime(target_end).date()
     st.session_state["start_date_picker"] = min(d_start, d_end)
     st.session_state["end_date_picker"] = max(d_start, d_end)
+    st.session_state["active_period_preset"] = preset_mode
 
 
 # =========================================================
@@ -522,31 +523,64 @@ with st.sidebar:
     d_end_obj = max(sel_start, sel_end)
     start_d, end_d = str(d_start_obj), str(d_end_obj)
 
-    # Quick Preset Buttons
-    st.caption("⚡ **빠른 기간 선택:**")
+    # Dynamic Date Presets relative to latest data date (max_date)
+    this_week_start = max(min_date, max_date - pd.Timedelta(days=max_date.weekday()))
+    this_week_end = max_date
+    last_week_end = max(min_date, this_week_start - pd.Timedelta(days=1))
+    last_week_start = max(min_date, last_week_end - pd.Timedelta(days=6))
+
+    curr_month_start = max_date.replace(day=1)
+    curr_month_end = max_date
+    prev_month_end = max(min_date, curr_month_start - pd.Timedelta(days=1))
+    prev_month_start = max(min_date, prev_month_end.replace(day=1))
+
+    curr_m_num = max_date.month
+    prev_m_num = prev_month_end.month
+    min_m_num = min_date.month
+
+    # Quick Preset Buttons (5 Presets: 금주, 전주, 당월, 전월, 전체)
+    st.caption("⚡ **빠른 기간 선택 (5종 맞춤 비교 연동):**")
+    qp_w1, qp_w2 = st.columns(2)
+    with qp_w1:
+        st.button(
+            "금주 (이번 주)",
+            key="quick_btn_this_week",
+            on_click=set_date_range_callback,
+            args=(this_week_start, this_week_end, "this_week"),
+            use_container_width=True
+        )
+    with qp_w2:
+        st.button(
+            "전주 (지난주)",
+            key="quick_btn_last_week",
+            on_click=set_date_range_callback,
+            args=(last_week_start, last_week_end, "last_week"),
+            use_container_width=True
+        )
+
     qp1, qp2, qp3 = st.columns(3)
     with qp1:
         st.button(
-            "전체 (1~9월)",
-            key="quick_btn_all",
+            f"당월 ({curr_m_num}월)",
+            key="quick_btn_curr_month",
             on_click=set_date_range_callback,
-            args=(min_date, max_date),
+            args=(curr_month_start, curr_month_end, "this_month"),
             use_container_width=True
         )
     with qp2:
         st.button(
-            "당월 (9월)",
-            key="quick_btn_curr_month",
+            f"전월 ({prev_m_num}월)",
+            key="quick_btn_prev_month",
             on_click=set_date_range_callback,
-            args=(default_start_date, max_date),
+            args=(prev_month_start, prev_month_end, "last_month"),
             use_container_width=True
         )
     with qp3:
         st.button(
-            "전월 (8월)",
-            key="quick_btn_prev_month",
+            f"전체 ({min_m_num}~{curr_m_num}월)",
+            key="quick_btn_all",
             on_click=set_date_range_callback,
-            args=("2026-08-01", "2026-08-31"),
+            args=(min_date, max_date, "all_time"),
             use_container_width=True
         )
 
@@ -575,7 +609,7 @@ with st.sidebar:
                     f"◀ 직전일\n({prev_work_day} {p_wk})",
                     key="side_btn_prev",
                     on_click=set_date_range_callback,
-                    args=(prev_work_day, prev_work_day),
+                    args=(prev_work_day, prev_work_day, "custom"),
                     use_container_width=True
                 )
         if next_work_day:
@@ -585,29 +619,71 @@ with st.sidebar:
                     f"다음일 ▶\n({next_work_day} {n_wk})",
                     key="side_btn_next",
                     on_click=set_date_range_callback,
-                    args=(next_work_day, next_work_day),
+                    args=(next_work_day, next_work_day, "custom"),
                     use_container_width=True
                 )
         st.button(
             f"🔄 최신 가동월 ({default_start_date} ~ {max_date})",
             key="side_btn_month",
             on_click=set_date_range_callback,
-            args=(default_start_date, max_date),
+            args=(default_start_date, max_date, "this_month"),
             use_container_width=True
         )
 
-    # Calculate Previous Period of equal length (동일한 이전 기간 계산)
+    # Detect active preset mode automatically if dates match one of the 5 presets
     start_dt = pd.to_datetime(start_d).date()
     end_dt = pd.to_datetime(end_d).date()
     days_count = (end_dt - start_dt).days + 1
-    prev_end_dt = start_dt - pd.Timedelta(days=1)
-    prev_start_dt = prev_end_dt - pd.Timedelta(days=days_count - 1)
+
+    if start_dt == this_week_start and end_dt == this_week_end:
+        detected_preset = "this_week"
+        preset_title_kr = "금주 (주간 실시간 점검)"
+        comp_basis_label = "전주 동요일 누적(WoW 동기간)"
+        prev_start_dt = last_week_start
+        prev_end_dt = min(last_week_end, last_week_start + pd.Timedelta(days=(end_dt - this_week_start).days))
+    elif start_dt == last_week_start and end_dt == last_week_end:
+        detected_preset = "last_week"
+        preset_title_kr = "전주 (주간 마감 리뷰)"
+        comp_basis_label = "전전주 확정 실적(WoW)"
+        prev_end_dt = last_week_start - pd.Timedelta(days=1)
+        prev_start_dt = prev_end_dt - pd.Timedelta(days=6)
+    elif start_dt == curr_month_start and end_dt == curr_month_end:
+        detected_preset = "this_month"
+        preset_title_kr = f"당월 ({curr_m_num}월 누적 진도 점검)"
+        comp_basis_label = f"전월({prev_m_num}월) 동기간(MTD)"
+        prev_start_dt = prev_month_start
+        prev_end_dt = min(prev_month_end, prev_month_start + pd.Timedelta(days=(end_dt - curr_month_start).days))
+    elif start_dt == prev_month_start and end_dt == prev_month_end:
+        detected_preset = "last_month"
+        preset_title_kr = f"전월 ({prev_m_num}월 마감 성적표)"
+        prev2_end = prev_month_start - pd.Timedelta(days=1)
+        prev2_start = prev2_end.replace(day=1)
+        comp_basis_label = f"전전월({prev2_end.month}월) 확정 실적(MoM)"
+        prev_start_dt = prev2_start
+        prev_end_dt = prev2_end
+    elif start_dt == min_date and end_dt == max_date:
+        detected_preset = "all_time"
+        preset_title_kr = f"전체 기간 ({min_m_num}~{curr_m_num}월 종합)"
+        comp_basis_label = "전반기 대비 최근 분기(일평균 환산)"
+        # Split all_time into early half vs recent 3 months for meaningful trend comparison
+        split_dt = max_date - pd.Timedelta(days=89)
+        prev_start_dt = min_date
+        prev_end_dt = split_dt - pd.Timedelta(days=1)
+    else:
+        detected_preset = "custom"
+        preset_title_kr = "사용자 지정 기간"
+        comp_basis_label = "직전 동일 일수 기간"
+        prev_end_dt = start_dt - pd.Timedelta(days=1)
+        prev_start_dt = prev_end_dt - pd.Timedelta(days=days_count - 1)
+
     prev_start_d = str(prev_start_dt)
     prev_end_d = str(prev_end_dt)
 
     prev_silver = silver_df[(silver_df["work_date"] >= prev_start_d) & (silver_df["work_date"] <= prev_end_d)]
 
     # Category Filter
+    selected_categories = []
+    selected_mfg = []
     if not filtered_silver.empty:
         all_categories = sorted(list(filtered_silver["category_1"].dropna().unique()))
         selected_categories = st.multiselect("🏷️ 대분류 필터", options=all_categories, default=all_categories)
@@ -663,9 +739,9 @@ else:
     prev_pack = 0.0
     prev_box_speed = 0.0
 
-def get_delta_badge(curr, prev, unit, is_float=False):
+def get_delta_badge(curr, prev, unit, is_float=False, custom_basis_label=None):
     if not has_prev_data or prev <= 0:
-        return '<div class="metric-delta delta-neutral">전기간 비교 데이터 없음</div>'
+        return '<div class="metric-delta delta-neutral">비교 기준 데이터 없음</div>'
     diff = curr - prev
     pct = (diff / prev) * 100
     sign = "+" if diff >= 0 else ""
@@ -673,10 +749,11 @@ def get_delta_badge(curr, prev, unit, is_float=False):
     color_class = "delta-pos" if diff >= 0 else "delta-neg"
     diff_str = f"{diff:+,.1f}" if is_float else f"{diff:+,.0f}"
     prev_str = f"{prev:,.1f}" if is_float else f"{prev:,.0f}"
+    basis_txt = custom_basis_label if custom_basis_label else "비교기간"
     return (
         f'<div class="metric-delta {color_class}">'
         f'<span>{arrow} {sign}{pct:.1f}%</span>'
-        f'<span class="delta-sub">(전기간 {prev_str}{unit} 대비 {diff_str}{unit})</span>'
+        f'<span class="delta-sub">({basis_txt} {prev_str}{unit} 대비 {diff_str}{unit})</span>'
         f'</div>'
     )
 
@@ -714,7 +791,7 @@ if filtered_silver.empty:
                 f"◀ 직전 가동일 ({prev_work_day} {p_wk}) 이동",
                 key="main_btn_prev",
                 on_click=set_date_range_callback,
-                args=(prev_work_day, prev_work_day),
+                args=(prev_work_day, prev_work_day, "custom"),
                 use_container_width=True
             )
     if next_work_day:
@@ -724,7 +801,7 @@ if filtered_silver.empty:
                 f"다음 가동일 ({next_work_day} {n_wk}) 이동 ▶",
                 key="main_btn_next",
                 on_click=set_date_range_callback,
-                args=(next_work_day, next_work_day),
+                args=(next_work_day, next_work_day, "custom"),
                 use_container_width=True
             )
     with nb3:
@@ -732,7 +809,7 @@ if filtered_silver.empty:
             f"📅 최신 가동월 ({default_start_date} ~ {max_date}) 이동",
             key="main_btn_month",
             on_click=set_date_range_callback,
-            args=(default_start_date, max_date),
+            args=(default_start_date, max_date, "this_month"),
             use_container_width=True
         )
     st.write("")
@@ -754,12 +831,12 @@ with tab1:
     st.markdown("### 📊 종합 운영 상황판 (Executive Overview)")
     if has_prev_data:
         st.caption(
-            f"조회 기간: **{start_d} ~ {end_d}** ({days_count}일간) | "
-            f"동일 전기간 비교: **{prev_start_d} ~ {prev_end_d}** (동일 {days_count}일) | "
+            f"조회 모드: **{preset_title_kr}** (`{start_d} ~ {end_d}`, {days_count}일간) | "
+            f"맞춤 비교 기준: **{comp_basis_label}** (`{prev_start_d} ~ {prev_end_d}`) | "
             f"누적 작업 건수: **{len(filtered_silver):,}건**"
         )
     else:
-        st.caption(f"조회 기간: **{start_d} ~ {end_d}** ({days_count}일간) | 누적 작업 건수: **{len(filtered_silver):,}건**")
+        st.caption(f"조회 모드: **{preset_title_kr}** (`{start_d} ~ {end_d}`, {days_count}일간) | 누적 작업 건수: **{len(filtered_silver):,}건**")
 
     # Metric Row
     col1, col2, col3, col4 = st.columns(4)
@@ -774,10 +851,105 @@ with tab1:
     daily_stickers_avg = round(total_stickers / max(1, active_days), 0) if active_days > 0 else 0.0
     daily_boxes_avg = round(total_boxes / max(1, active_days), 0) if active_days > 0 else 0.0
 
-    badge_stickers = get_delta_badge(total_stickers, prev_stickers, "매")
-    badge_boxes = get_delta_badge(total_boxes, prev_boxes, "박스")
-    badge_hours = get_delta_badge(total_hours, prev_hours, "인·시", is_float=True)
-    badge_speed = get_delta_badge(avg_speed, prev_speed, "매/hr", is_float=True)
+    # Contextual Comparison Engine for the 5 Period Presets
+    if detected_preset == "all_time" and not daily_mart.empty:
+        # Compare recent 90 days daily average vs earlier period daily average
+        split_d_str = str(max_date - pd.Timedelta(days=89))
+        rec_daily = daily_mart[daily_mart["work_date"] >= split_d_str]
+        ear_daily = daily_mart[daily_mart["work_date"] < split_d_str]
+        rec_days = max(1, len(rec_daily))
+        ear_days = max(1, len(ear_daily))
+        rec_stk_d = round(rec_daily["total_stickers"].sum() / rec_days, 0)
+        ear_stk_d = round(ear_daily["total_stickers"].sum() / ear_days, 0)
+        rec_box_d = round(rec_daily["total_boxes"].sum() / rec_days, 0)
+        ear_box_d = round(ear_daily["total_boxes"].sum() / ear_days, 0)
+        rec_hr_d = round(rec_daily["total_man_hours"].sum() / rec_days, 1)
+        ear_hr_d = round(ear_daily["total_man_hours"].sum() / ear_days, 1)
+        rec_spd = round(rec_daily["total_stickers"].sum() / max(1.0, rec_daily["total_man_hours"].sum()), 1)
+        ear_spd = round(ear_daily["total_stickers"].sum() / max(1.0, ear_daily["total_man_hours"].sum()), 1)
+
+        badge_stickers = get_delta_badge(rec_stk_d, ear_stk_d, "매/일", custom_basis_label="전반기 일평균")
+        badge_boxes = get_delta_badge(rec_box_d, ear_box_d, "박스/일", custom_basis_label="전반기 일평균")
+        badge_hours = get_delta_badge(rec_hr_d, ear_hr_d, "인시/일", is_float=True, custom_basis_label="전반기 일평균")
+        badge_speed = get_delta_badge(rec_spd, ear_spd, "매/hr", is_float=True, custom_basis_label="전반기 속도")
+    else:
+        short_basis = {
+            "this_week": "전주 동기간",
+            "last_week": "전전주",
+            "this_month": "전월 동기간",
+            "last_month": "전전월",
+            "custom": "직전 기간"
+        }.get(detected_preset, "직전 기간")
+        badge_stickers = get_delta_badge(total_stickers, prev_stickers, "매", custom_basis_label=short_basis)
+        badge_boxes = get_delta_badge(total_boxes, prev_boxes, "박스", custom_basis_label=short_basis)
+        badge_hours = get_delta_badge(total_hours, prev_hours, "인시", is_float=True, custom_basis_label=short_basis)
+        badge_speed = get_delta_badge(avg_speed, prev_speed, "매/hr", is_float=True, custom_basis_label=short_basis)
+
+    # Secondary Context Benchmark Banner for the 5 Presets
+    if not daily_mart.empty and active_days > 0:
+        w28_start_str = str(max_date - pd.Timedelta(days=27))
+        recent_4w_daily = daily_mart[daily_mart["work_date"] >= w28_start_str]
+        avg_4w_daily_stk = round(recent_4w_daily["total_stickers"].sum() / max(1, len(recent_4w_daily)), 0)
+        avg_4w_weekly_stk = round(recent_4w_daily["total_stickers"].sum() / 4.0, 0)
+
+        prev_m_full_df = daily_mart[(daily_mart["work_date"] >= str(prev_month_start)) & (daily_mart["work_date"] <= str(prev_month_end))]
+        prev_m_full_stk = int(prev_m_full_df["total_stickers"].sum())
+        prev_m_active_days = max(1, len(prev_m_full_df))
+
+        monthly_totals = daily_mart.groupby("work_month")["total_stickers"].sum()
+        annual_monthly_avg_stk = round(monthly_totals.mean(), 0) if not monthly_totals.empty else 0
+        peak_m_name = monthly_totals.idxmax() if not monthly_totals.empty else "-"
+        peak_m_val = int(monthly_totals.max()) if not monthly_totals.empty else 0
+
+        if detected_preset == "this_week":
+            vs_4w_pct = ((daily_stickers_avg - avg_4w_daily_stk) / max(1, avg_4w_daily_stk)) * 100
+            bench_summary_html = (
+                f"📌 <strong>[금주 맞춤 비교 지표]</strong> "
+                f"① <strong>전주 동요일 누적 대비:</strong> {prev_stickers:,}매 ➔ <strong>{total_stickers:,}매</strong> | "
+                f"② <strong>최근 4주 일평균({avg_4w_daily_stk:,.0f}매/일) 대비:</strong> 금주 일평균 <strong>{daily_stickers_avg:,.0f}매/일 ({vs_4w_pct:+.1f}%)</strong>"
+            )
+        elif detected_preset == "last_week":
+            vs_4w_wk_pct = ((total_stickers - avg_4w_weekly_stk) / max(1, avg_4w_weekly_stk)) * 100
+            bench_summary_html = (
+                f"📌 <strong>[전주 마감 비교 지표]</strong> "
+                f"① <strong>전전주 확정 실적({prev_stickers:,}매) 대비:</strong> <strong>{total_stickers - prev_stickers:+,.0f}매</strong> | "
+                f"② <strong>최근 4주 주간 평균({avg_4w_weekly_stk:,.0f}매/주) 대비:</strong> <strong>{vs_4w_wk_pct:+.1f}%</strong>"
+            )
+        elif detected_preset == "this_month":
+            projected_month_stk = int(round(daily_stickers_avg * prev_m_active_days))
+            progress_vs_prev_m = (total_stickers / max(1, prev_m_full_stk)) * 100
+            bench_summary_html = (
+                f"📌 <strong>[당월({curr_m_num}월) 진도 및 마감 예측 지표]</strong> "
+                f"① <strong>전월 동기간({prev_stickers:,}매) 대비:</strong> <strong>{total_stickers - prev_stickers:+,.0f}매</strong> | "
+                f"② <strong>전월 전체({prev_m_full_stk:,}매) 대비 진도율:</strong> <strong>{progress_vs_prev_m:.1f}%</strong> | "
+                f"③ <strong>당월 예상 마감치(Run-rate, {prev_m_active_days}일 가동 환산):</strong> 약 <strong>{projected_month_stk:,}매</strong>"
+            )
+        elif detected_preset == "last_month":
+            vs_yr_avg_pct = ((total_stickers - annual_monthly_avg_stk) / max(1, annual_monthly_avg_stk)) * 100
+            bench_summary_html = (
+                f"📌 <strong>[전월({prev_m_num}월) 확정 성적 비교 지표]</strong> "
+                f"① <strong>전전월 확정({prev_stickers:,}매) 대비:</strong> <strong>{total_stickers - prev_stickers:+,.0f}매</strong> | "
+                f"② <strong>연간 월평균({annual_monthly_avg_stk:,.0f}매/월) 대비:</strong> <strong>{vs_yr_avg_pct:+.1f}%</strong>"
+            )
+        elif detected_preset == "all_time":
+            bench_summary_html = (
+                f"📌 <strong>[전체 기간 종합 벤치마크 지표]</strong> "
+                f"① <strong>최근 3개월 일평균:</strong> <strong>{rec_stk_d:,.0f}매/일</strong> (전반기 {ear_stk_d:,.0f}매/일 대비) | "
+                f"② <strong>최대 피크월(Peak):</strong> <strong>{peak_m_name} ({peak_m_val:,}매)</strong> | "
+                f"③ <strong>연간 가동일 평균:</strong> 일평균 <strong>{daily_stickers_avg:,.0f}매</strong> / 시간당 <strong>{avg_speed:.1f}매/hr</strong>"
+            )
+        else:
+            bench_summary_html = (
+                f"📌 <strong>[선택 기간 비교 요약]</strong> "
+                f"직전 동일 기간({prev_start_d}~{prev_end_d}, {prev_stickers:,}매) 대비 <strong>{total_stickers - prev_stickers:+,.0f}매</strong> | "
+                f"최근 4주 일평균({avg_4w_daily_stk:,.0f}매/일) 대비 일평균 <strong>{daily_stickers_avg:,.0f}매/일</strong>"
+            )
+
+        st.markdown(f"""
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-left:4px solid #2563eb; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:13px; color:#1e293b;">
+            {bench_summary_html}
+        </div>
+        """, unsafe_allow_html=True)
 
     active_days_sub = f"일평균 <strong>{daily_stickers_avg:,.0f}</strong> 매 (가동일수 {active_days}일)" if active_days > 0 else "선택 기간 내 <strong>비가동일 (0일)</strong>"
     active_boxes_sub = f"일평균 <strong>{daily_boxes_avg:,.0f}</strong> 박스 (출하 박스 기준)" if active_days > 0 else "출하 박스 실적 없음"
@@ -815,11 +987,11 @@ with tab1:
         <div class="metric-card">
             <div class="metric-top">
                 <div class="metric-label">총 투입 공수 (누적 Man-Hours)</div>
-                <div class="metric-value" style="color:#7c3aed;">{total_hours:,.1f} <span style="font-size:16px; font-weight:600;">인·시</span></div>
+                <div class="metric-value" style="color:#7c3aed;">{total_hours:,.1f} <span style="font-size:16px; font-weight:600;">인시</span></div>
                 {badge_hours}
                 <div class="metric-sub">{active_hours_sub}</div>
             </div>
-            <div class="metric-desc">ℹ️ 투입 인원 × 작업시간의 누적 총합입니다. (예: 10명 × 8시간 = 80 인·시)</div>
+            <div class="metric-desc">ℹ️ 투입 인원 × 작업시간의 누적 총합입니다. (예: 10명 × 8시간 = 80 인시)</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -851,65 +1023,92 @@ with tab1:
         )
         
         if trend_granularity == "일간 (선택 기간)":
-            if not filtered_daily.empty and filtered_daily["total_stickers"].sum() > 0:
-                chart_daily = filtered_daily.sort_values("work_date").copy()
-                weekday_map = {0: "월요일", 1: "화요일", 2: "수요일", 3: "목요일", 4: "금요일", 5: "토요일", 6: "일요일"}
-                chart_daily["weekday_name"] = pd.to_datetime(chart_daily["work_date"]).dt.dayofweek.map(weekday_map)
+            active_daily = filtered_daily[filtered_daily["total_stickers"] > 0].sort_values("work_date").copy() if not filtered_daily.empty else pd.DataFrame()
+            if not active_daily.empty:
+                chart_daily = active_daily.copy()
+                weekday_short_map = {0: "월", 1: "화", 2: "수", 3: "목", 4: "금", 5: "토", 6: "일"}
+                weekday_full_map = {0: "월요일", 1: "화요일", 2: "수요일", 3: "목요일", 4: "금요일", 5: "토요일", 6: "일요일"}
+                dt_series = pd.to_datetime(chart_daily["work_date"])
+                chart_daily["weekday_name"] = dt_series.dt.dayofweek.map(weekday_full_map)
+                chart_daily["weekday_short"] = dt_series.dt.dayofweek.map(weekday_short_map)
+                chart_daily["kor_date_label"] = (
+                    dt_series.dt.month.astype(str) + "월 "
+                    + dt_series.dt.day.astype(str) + "일("
+                    + chart_daily["weekday_short"] + ")"
+                )
                 chart_daily["stickers_per_worker"] = (
                     chart_daily["total_stickers"] / chart_daily["effective_worker_count"].replace(0, np.nan)
                 ).fillna(0).round(0)
+
+                peak_row = chart_daily.loc[chart_daily["total_stickers"].idxmax()]
+                st.markdown(
+                    f"<div style='font-size:12.5px; color:#334155; background:#f8fafc; padding:6px 10px; border-radius:6px; border-left:3px solid #2563eb; margin-bottom:6px;'>"
+                    f"📌 <b>핵심 요약:</b> 조회 기간 중 실제 가동일은 <b>{len(chart_daily)}일</b>(비가동 주말/휴일 자동 제외)이며, "
+                    f"최대 피크일은 <b>{peak_row['kor_date_label']} ({int(peak_row['total_stickers']):,}매, {peak_row['effective_worker_count']:.1f}명 투입)</b>입니다."
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
                 fig = go.Figure()
                 
                 # Stickers Bar
                 fig.add_trace(go.Bar(
-                    x=chart_daily["work_date"],
+                    x=chart_daily["kor_date_label"],
                     y=chart_daily["total_stickers"],
                     name="스티커 작업량 (매)",
-                    marker_color="#3b82f6",
+                    marker_color="#2563eb",
                     customdata=np.stack((
+                        chart_daily["work_date"],
                         chart_daily["weekday_name"],
                         chart_daily["effective_worker_count"],
                         chart_daily["stickers_per_worker"]
                     ), axis=-1),
                     hovertemplate=(
-                        "<b>%{x} (%{customdata[0]})</b><br>"
+                        "<b>%{customdata[0]} (%{customdata[1]})</b><br>"
                         "• 일일 스티커 작업량: <b>%{y:,.0f} 매</b><br>"
-                        "• 당일 투입 인원: <b>%{customdata[1]:.1f} 명</b><br>"
-                        "• 1인당 처리 매수: <b>%{customdata[2]:,.0f} 매/인</b><extra></extra>"
+                        "• 당일 투입 인원: <b>%{customdata[2]:.1f} 명</b><br>"
+                        "• 1인당 처리 매수: <b>%{customdata[3]:,.0f} 매/인</b><extra></extra>"
                     ),
                     yaxis="y"
                 ))
                 
                 # Worker Count Line
                 fig.add_trace(go.Scatter(
-                    x=chart_daily["work_date"],
+                    x=chart_daily["kor_date_label"],
                     y=chart_daily["effective_worker_count"],
                     name="투입 인원 (명)",
                     mode="lines+markers",
                     marker=dict(size=7, color="#ef4444"),
                     line=dict(width=2.5, color="#ef4444"),
                     customdata=np.stack((
+                        chart_daily["work_date"],
                         chart_daily["weekday_name"],
                         chart_daily["total_stickers"],
                         chart_daily["stickers_per_worker"]
                     ), axis=-1),
                     hovertemplate=(
-                        "<b>%{x} (%{customdata[0]})</b><br>"
+                        "<b>%{customdata[0]} (%{customdata[1]})</b><br>"
                         "• 당일 투입 인원: <b>%{y:.1f} 명</b><br>"
-                        "• 일일 스티커 작업량: <b>%{customdata[1]:,.0f} 매</b><br>"
-                        "• 1인당 처리 매수: <b>%{customdata[2]:,.0f} 매/인</b><extra></extra>"
+                        "• 일일 스티커 작업량: <b>%{customdata[2]:,.0f} 매</b><br>"
+                        "• 1인당 처리 매수: <b>%{customdata[3]:,.0f} 매/인</b><extra></extra>"
                     ),
                     yaxis="y2"
                 ))
 
                 fig.update_layout(
                     dragmode=False,
-                    xaxis=dict(fixedrange=True),
-                    yaxis=dict(title="스티커 작업량 (매)", showgrid=True, fixedrange=True),
-                    yaxis2=dict(title="투입 인원 (명)", overlaying="y", side="right", showgrid=False, fixedrange=True),
+                    xaxis=dict(
+                        type="category",
+                        categoryorder="array",
+                        categoryarray=chart_daily["kor_date_label"].tolist(),
+                        tickangle=-35 if len(chart_daily) > 10 else 0,
+                        fixedrange=True
+                    ),
+                    yaxis=dict(title="스티커 작업량 (매)", tickformat=",d", showgrid=True, fixedrange=True),
+                    yaxis2=dict(title="투입 인원 (명)", tickformat=".1f", overlaying="y", side="right", showgrid=False, fixedrange=True),
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                     margin=dict(l=20, r=20, t=30, b=20),
-                    height=360,
+                    height=350,
                     hoverlabel=dict(align="left")
                 )
                 st.plotly_chart(fig, use_container_width=True, config=PLOTLY_STATIC_CONFIG)
@@ -966,7 +1165,7 @@ with tab1:
                     x=weekly["short_label"],
                     y=weekly["total_stickers"],
                     name="주간 스티커 작업량 (매)",
-                    marker_color="#3b82f6",
+                    marker_color="#2563eb",
                     customdata=np.stack((weekly["display_label"], weekly["total_boxes"], weekly["status_desc"]), axis=-1),
                     hovertemplate="<b>%{customdata[0]}</b><br>• 주간 스티커량: <b>%{y:,.0f} 매</b><br>• 주간 작업 박스: <b>%{customdata[1]:,.0f} 박스</b><br>• 상태: <b>%{customdata[2]}</b><extra></extra>",
                     yaxis="y"
@@ -985,8 +1184,8 @@ with tab1:
 
                 fig.update_layout(
                     dragmode=False,
-                    yaxis=dict(title="스티커 작업량 (매)", showgrid=True, fixedrange=True),
-                    yaxis2=dict(title="일평균 투입 인원 (명)", overlaying="y", side="right", showgrid=False, fixedrange=True),
+                    yaxis=dict(title="스티커 작업량 (매)", tickformat=",d", showgrid=True, fixedrange=True),
+                    yaxis2=dict(title="일평균 투입 인원 (명)", tickformat=".1f", overlaying="y", side="right", showgrid=False, fixedrange=True),
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                     margin=dict(l=20, r=20, t=30, b=20),
                     height=360,
@@ -1006,7 +1205,7 @@ with tab1:
                     active_days=("work_date", "nunique")
                 ).reset_index().sort_values("work_month")
 
-                monthly["display_label"] = monthly["work_month"].apply(lambda m: f"{m[:4]}년 {m[5:]}월")
+                monthly["display_label"] = monthly["work_month"].apply(lambda m: f"{int(m[5:])}월")
                 monthly["avg_workers"] = monthly["avg_workers"].round(1)
 
                 fig = go.Figure()
@@ -1014,9 +1213,9 @@ with tab1:
                     x=monthly["display_label"],
                     y=monthly["total_stickers"],
                     name="월간 스티커 작업량 (매)",
-                    marker_color="#3b82f6",
-                    customdata=np.stack((monthly["active_days"], monthly["total_boxes"]), axis=-1),
-                    hovertemplate="<b>%{x}</b><br>• 월간 스티커량: <b>%{y:,.0f} 매</b><br>• 월간 작업 박스: <b>%{customdata[1]:,.0f} 박스</b><br>• 월간 가동일수: <b>%{customdata[0]} 일</b><extra></extra>",
+                    marker_color="#2563eb",
+                    customdata=np.stack((monthly["active_days"], monthly["total_boxes"], monthly["work_month"]), axis=-1),
+                    hovertemplate="<b>%{customdata[2]} (%{x})</b><br>• 월간 스티커량: <b>%{y:,.0f} 매</b><br>• 월간 작업 박스: <b>%{customdata[1]:,.0f} 박스</b><br>• 월간 가동일수: <b>%{customdata[0]} 일</b><extra></extra>",
                     yaxis="y"
                 ))
                 fig.add_trace(go.Scatter(
@@ -1032,9 +1231,9 @@ with tab1:
 
                 fig.update_layout(
                     dragmode=False,
-                    xaxis=dict(fixedrange=True),
-                    yaxis=dict(title="스티커 작업량 (매)", showgrid=True, fixedrange=True),
-                    yaxis2=dict(title="일평균 투입 인원 (명)", overlaying="y", side="right", showgrid=False, fixedrange=True),
+                    xaxis=dict(type="category", fixedrange=True),
+                    yaxis=dict(title="스티커 작업량 (매)", tickformat=",d", showgrid=True, fixedrange=True),
+                    yaxis2=dict(title="일평균 투입 인원 (명)", tickformat=".1f", overlaying="y", side="right", showgrid=False, fixedrange=True),
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                     margin=dict(l=20, r=20, t=30, b=20),
                     height=360,
@@ -1045,7 +1244,7 @@ with tab1:
                 st.info("표시할 월간 작업 데이터가 없습니다.")
 
     with col_chart2:
-        st.subheader("🍩 제조사별 작업 비중")
+        st.subheader("📊 제조사별 작업 비중 및 순위")
         
         # Interactive criteria toggle
         pie_metric = st.radio(
@@ -1062,66 +1261,124 @@ with tab1:
                     total_boxes=("work_qty", "sum")
                 ).reset_index()
                 mfg_agg["pack_qty"] = (mfg_agg["total_stickers"] / mfg_agg["total_boxes"].replace(0, 1)).round(1)
-                mfg_agg = mfg_agg.sort_values("pack_qty", ascending=True)
+                mfg_agg = mfg_agg.sort_values("pack_qty", ascending=False).head(8).sort_values("pack_qty", ascending=True)
+                top_pack_row = mfg_agg.iloc[-1]
 
-                fig_bar = px.bar(
-                    mfg_agg,
-                    x="pack_qty",
-                    y="manufacturer",
+                st.markdown(
+                    f"<div style='font-size:12.5px; color:#334155; background:#f8fafc; padding:6px 10px; border-radius:6px; border-left:3px solid #2563eb; margin-bottom:6px;'>"
+                    f"📌 <b>핵심 요약:</b> <b>{top_pack_row['manufacturer']}</b>의 박스당 평균 입량이 <b>{top_pack_row['pack_qty']:.1f}개/박스</b>로 가장 높아, 동일 박스 대비 낱개 부착 부하가 가장 큽니다."
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+                n_bars = len(mfg_agg)
+                bar_colors = ["#94a3b8" if i < n_bars - 2 else "#2563eb" for i in range(n_bars)]
+
+                fig_bar = go.Figure(go.Bar(
+                    x=mfg_agg["pack_qty"],
+                    y=mfg_agg["manufacturer"],
                     orientation="h",
-                    text="pack_qty",
-                    color="manufacturer",
-                    color_discrete_map=MANUFACTURER_COLORS,
-                    labels={"pack_qty": "박스당 평균 입량 (개/박스)", "manufacturer": "제조사"}
-                )
-                fig_bar.update_traces(
-                    texttemplate='%{text:.1f} 개/박스',
-                    textposition='outside',
-                    hoverlabel=dict(align="left"),
-                    hovertemplate="<b>%{y}</b><br>• 박스당 평균 입량: <b>%{x:.1f} 개/박스</b><extra></extra>"
-                )
+                    text=mfg_agg["pack_qty"].apply(lambda v: f"{v:.1f} 개/박스"),
+                    textposition="outside",
+                    marker_color=bar_colors,
+                    customdata=np.stack((mfg_agg["total_stickers"], mfg_agg["total_boxes"]), axis=-1),
+                    hovertemplate=(
+                        "<b>%{y}</b><br>"
+                        "• 박스당 평균 입량: <b>%{x:.1f} 개/박스</b><br>"
+                        "• 기간 내 스티커수량: <b>%{customdata[0]:,.0f} 매</b><br>"
+                        "• 기간 내 작업박스: <b>%{customdata[1]:,.0f} 박스</b><extra></extra>"
+                    )
+                ))
                 fig_bar.update_layout(
                     dragmode=False,
-                    margin=dict(l=10, r=50, t=10, b=10),
-                    height=310,
+                    margin=dict(l=10, r=75, t=10, b=10),
+                    height=330,
                     showlegend=False,
                     hoverlabel=dict(align="left"),
-                    xaxis=dict(showgrid=True, fixedrange=True),
-                    yaxis=dict(fixedrange=True)
+                    xaxis=dict(title="박스당 평균 입량 (개/박스)", showgrid=True, fixedrange=True, range=[0, float(mfg_agg["pack_qty"].max()) * 1.28]),
+                    yaxis=dict(title="", fixedrange=True)
                 )
                 st.plotly_chart(fig_bar, use_container_width=True, config=PLOTLY_STATIC_CONFIG)
-                st.caption("💡 각 제조사 제품 1박스에 낱개가 몇 개씩 들어있는지 실제 수치와 막대 길이로 바로 비교하실 수 있습니다.")
             else:
                 if pie_metric == "스티커수량 (매)":
-                    mfg_agg = filtered_silver.groupby("manufacturer")["sticker_qty"].sum().reset_index()
-                    val_col = "sticker_qty"
+                    mfg_agg = filtered_silver.groupby("manufacturer").agg(
+                        val=("sticker_qty", "sum"),
+                        sub_val=("work_qty", "sum")
+                    ).reset_index()
                     unit_label = "매"
+                    sub_label = "박스"
                 else:
-                    mfg_agg = filtered_silver.groupby("manufacturer")["work_qty"].sum().reset_index()
-                    val_col = "work_qty"
+                    mfg_agg = filtered_silver.groupby("manufacturer").agg(
+                        val=("work_qty", "sum"),
+                        sub_val=("sticker_qty", "sum")
+                    ).reset_index()
                     unit_label = "박스"
+                    sub_label = "매"
 
-                fig_pie = px.pie(
-                    mfg_agg,
-                    names="manufacturer",
-                    values=val_col,
-                    hole=0.45,
-                    color="manufacturer",
-                    color_discrete_map=MANUFACTURER_COLORS
+                tot_mfg_val = float(mfg_agg["val"].sum())
+                mfg_agg = mfg_agg.sort_values("val", ascending=False).reset_index(drop=True)
+
+                if len(mfg_agg) > 7:
+                    top_mfg = mfg_agg.head(7).copy()
+                    etc_val = mfg_agg.iloc[7:]["val"].sum()
+                    etc_sub = mfg_agg.iloc[7:]["sub_val"].sum()
+                    etc_row = pd.DataFrame([{
+                        "manufacturer": f"기타 제조사 ({len(mfg_agg) - 7}곳)",
+                        "val": etc_val,
+                        "sub_val": etc_sub
+                    }])
+                    mfg_plot = pd.concat([top_mfg, etc_row], ignore_index=True)
+                else:
+                    mfg_plot = mfg_agg.copy()
+
+                mfg_plot["share_pct"] = (mfg_plot["val"] / max(1.0, tot_mfg_val) * 100).round(1)
+                top2_share = float(mfg_agg.head(2)["val"].sum() / max(1.0, tot_mfg_val) * 100)
+                top2_names = ", ".join(mfg_agg.head(2)["manufacturer"].astype(str).tolist())
+
+                st.markdown(
+                    f"<div style='font-size:12.5px; color:#334155; background:#f8fafc; padding:6px 10px; border-radius:6px; border-left:3px solid #2563eb; margin-bottom:6px;'>"
+                    f"📌 <b>핵심 요약:</b> 상위 2개 제조사(<b>{top2_names}</b>)가 전체 {pie_metric[:4]}의 <b>{top2_share:.1f}%</b>를 차지합니다."
+                    f"</div>",
+                    unsafe_allow_html=True
                 )
-                fig_pie.update_traces(
-                    textposition="inside",
-                    textinfo="percent+label",
-                    hoverlabel=dict(align="left"),
-                    hovertemplate=f"<b>%{{label}}</b><br>• 비중: <b>%{{percent}}</b><br>• {pie_metric}: <b>%{{value:,.0f}} {unit_label}</b><extra></extra>"
+
+                mfg_plot["bar_label"] = mfg_plot.apply(
+                    lambda r: f"{int(r['val']):,}{unit_label} ({r['share_pct']:.1f}%)", axis=1
                 )
-                fig_pie.update_layout(
+                # Strategic Contrast: Top 2 in Accent Blue (#2563eb), Rank 3~5 in Slate (#64748b), Others in Muted Slate (#94a3b8)
+                mfg_plot["bar_color"] = [
+                    "#2563eb" if i < 2 and not str(r["manufacturer"]).startswith("기타")
+                    else ("#94a3b8" if str(r["manufacturer"]).startswith("기타") else "#64748b")
+                    for i, (_, r) in enumerate(mfg_plot.iterrows())
+                ]
+
+                mfg_plot_asc = mfg_plot.iloc[::-1].reset_index(drop=True)
+                max_x = float(mfg_plot_asc["val"].max()) if not mfg_plot_asc.empty else 1.0
+
+                fig_mfg_bar = go.Figure(go.Bar(
+                    x=mfg_plot_asc["val"],
+                    y=mfg_plot_asc["manufacturer"],
+                    orientation="h",
+                    text=mfg_plot_asc["bar_label"],
+                    textposition="outside",
+                    marker_color=mfg_plot_asc["bar_color"],
+                    customdata=np.stack((mfg_plot_asc["share_pct"], mfg_plot_asc["sub_val"]), axis=-1),
+                    hovertemplate=(
+                        "<b>%{y}</b><br>"
+                        f"• {pie_metric}: <b>%{{x:,.0f}} {unit_label}</b> (비중: <b>%{{customdata[0]:.1f}}%</b>)<br>"
+                        f"• 교차 실적: <b>%{{customdata[1]:,.0f}} {sub_label}</b><extra></extra>"
+                    )
+                ))
+                fig_mfg_bar.update_layout(
                     dragmode=False,
-                    margin=dict(l=10, r=10, t=10, b=10),
-                    height=310,
-                    hoverlabel=dict(align="left")
+                    margin=dict(l=10, r=105, t=10, b=10),
+                    height=330,
+                    showlegend=False,
+                    hoverlabel=dict(align="left"),
+                    xaxis=dict(title=pie_metric, tickformat=",d", showgrid=True, fixedrange=True, range=[0, max_x * 1.34]),
+                    yaxis=dict(title="", fixedrange=True)
                 )
-                st.plotly_chart(fig_pie, use_container_width=True, config=PLOTLY_STATIC_CONFIG)
+                st.plotly_chart(fig_mfg_bar, use_container_width=True, config=PLOTLY_STATIC_CONFIG)
         else:
             st.info("선택하신 기간에는 제조사 작업 실적이 없습니다.")
 
@@ -1307,55 +1564,73 @@ with tab1:
             st.info("선택하신 기간에는 상위 품목 작업 실적이 없습니다. (공장 비가동일)")
 
     with col_t2:
-        st.subheader("📅 월별 실적 요약")
-        
-        if not filtered_silver.empty and not filtered_daily.empty and filtered_silver["sticker_qty"].sum() > 0:
-            # Monthly aggregates with full metrics
-            # 일별 투입 공수 및 인원은 일자 단위 마트(filtered_daily)에서 집계하여 품목 라인 수에 따른 중복 곱셈 방지
-            monthly_daily = filtered_daily.groupby("work_month").agg(
-                총투입공수=("total_man_hours", "sum"),
-                가동일수=("work_date", "nunique"),
-                투입인원_합계=("effective_worker_count", "sum")
-            ).reset_index()
+        m_hdr1, m_hdr2 = st.columns([1.15, 1.35])
+        with m_hdr1:
+            st.subheader("📅 월별 실적 요약")
+        with m_hdr2:
+            monthly_scope_choice = st.selectbox(
+                "표시 월 범위 선택",
+                [
+                    "최근 3개월 (기본 권장)",
+                    "최근 6개월",
+                    "사이드바 조회 기간 연동",
+                    "전체 기간 (2026년 1~11월)"
+                ],
+                index=0,
+                key="monthly_summary_scope_select",
+                help="월별 요약 테이블은 Gold Mart(gold_monthly_summary_mart.csv)에 사전 집계되어 있으며, 기본적으로 최근 3개월 실적을 우선 표시합니다."
+            )
 
-            monthly_silver = filtered_silver.groupby("work_month").agg(
-                총스티커수량=("sticker_qty", "sum"),
-                총작업수량_박스=("work_qty", "sum"),
-                취급품목수=("normalized_item_name", "nunique")
-            ).reset_index()
+        # Build or filter from Gold Monthly Summary Mart logic (excludes auxiliary box/cutlery from unique SKU count)
+        if monthly_scope_choice == "사이드바 조회 기간 연동":
+            base_m_silver = filtered_silver
+            base_m_daily = filtered_daily
+        else:
+            base_m_silver = silver_df
+            base_m_daily = daily_mart
+            if selected_categories:
+                base_m_silver = base_m_silver[base_m_silver["category_1"].isin(selected_categories)]
+            if selected_mfg:
+                base_m_silver = base_m_silver[base_m_silver["manufacturer"].isin(selected_mfg)]
 
-            monthly_summary = monthly_silver.merge(monthly_daily, on="work_month")
+        if not base_m_silver.empty and not base_m_daily.empty and base_m_silver["sticker_qty"].sum() > 0:
+            monthly_summary = GoldAnalyticsPipeline.build_monthly_summary_mart(
+                base_m_silver, daily_mart=base_m_daily, save_to_disk=False
+            )
+            if monthly_scope_choice == "최근 3개월 (기본 권장)":
+                monthly_summary = monthly_summary.tail(3).reset_index(drop=True)
+            elif monthly_scope_choice == "최근 6개월":
+                monthly_summary = monthly_summary.tail(6).reset_index(drop=True)
 
-            monthly_summary["시간당부착량"] = (
-                monthly_summary["총스티커수량"] / monthly_summary["총투입공수"].replace(0, 1)
-            ).round(1)
-
-            monthly_summary["인당일평균부착량"] = (
-                monthly_summary["총스티커수량"] / monthly_summary["투입인원_합계"].replace(0, 1)
-            ).round(0)
-
-            # Rename to clean Korean column headers
             disp_monthly = monthly_summary[[
-                "work_month", "총스티커수량", "총작업수량_박스", "총투입공수", "시간당부착량", "인당일평균부착량", "가동일수", "취급품목수"
+                "work_month", "총스티커수량", "총작업수량_박스", "총투입공수",
+                "시간당부착량", "인당일평균부착량", "가동일수", "취급품목수"
             ]].copy()
             
             disp_monthly.columns = [
-                "작업월", "총 스티커수량(매)", "총 작업수량(박스)", "총 투입공수(인·시)", "1인 시간당 부착량(매/hr)", "1인 1일 부착량(매/일)", "가동일수(일)", "취급 품목수(개)"
+                "작업월", "총 스티커수량(매)", "총 작업수량(박스)", "총 투입공수(인시)",
+                "1인 시간당 부착량(매/hr)", "1인 1일 부착량(매/일)", "가동일수(일)", "취급 품목수(개)"
             ]
 
             styled_monthly = disp_monthly.style.format({
                 "총 스티커수량(매)": "{:,.0f}",
                 "총 작업수량(박스)": "{:,.0f}",
-                "총 투입공수(인·시)": "{:,.1f}",
+                "총 투입공수(인시)": "{:,.1f}",
                 "1인 시간당 부착량(매/hr)": "{:,.1f}",
                 "1인 1일 부착량(매/일)": "{:,.0f}",
                 "가동일수(일)": "{:,.0f}",
                 "취급 품목수(개)": "{:,.0f}"
             })
-            st.dataframe(styled_monthly, use_container_width=True, height=260, hide_index=True)
+            st.dataframe(styled_monthly, use_container_width=True, height=265, hide_index=True)
 
-            st.caption("💡 **1인 시간당 부착량(매/hr)**: 1명이 1시간 동안 부착한 평균 스티커 매수입니다.")
-            st.caption("💡 **총 투입공수(인·시)**: 당월 근무인원 × 일일 작업시간의 누적 총합입니다.")
+            st.caption(
+                "💡 **집계 기준 안내 (`gold_monthly_summary_mart.csv`)**: "
+                "**취급 품목수(개)**는 당월 작업된 고유 제품(SKU) 종류 수(동일 품목 다수 작업 시 1개로 중복 제거, 외박스 `box` 및 소모품 제외)입니다."
+            )
+            st.caption(
+                "💡 **1인 시간당 부착량(매/hr)**: 1명이 1시간 동안 부착한 평균 스티커 매수 | "
+                "**총 투입공수(인시)**: 당월 근무인원 × 일일 작업시간의 누적 총합입니다."
+            )
         else:
             st.info("선택하신 기간에는 월별 집계 실적이 없습니다. (공장 비가동일)")
 
@@ -1522,10 +1797,10 @@ with tab2:
             fig_cat.update_layout(
                 dragmode=False,
                 height=400,
-                margin=dict(l=10, r=40, t=10, b=10),
+                margin=dict(l=10, r=55, t=10, b=10),
                 hoverlabel=common_hoverlabel,
                 yaxis={"categoryorder": "total ascending", "fixedrange": True},
-                xaxis=dict(title="시간당 부착 속도 (매/hr)", fixedrange=True),
+                xaxis=dict(title="시간당 부착 속도 (매/hr)", tickformat=",d", fixedrange=True),
                 yaxis_title=""
             )
             st.plotly_chart(fig_cat, use_container_width=True, config=PLOTLY_STATIC_CONFIG)
@@ -1579,11 +1854,28 @@ with tab2:
                 hoverlabel=common_hoverlabel,
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title=""),
                 xaxis=dict(fixedrange=True),
-                yaxis=dict(fixedrange=True)
+                yaxis=dict(tickformat=",d", fixedrange=True)
             )
             st.plotly_chart(fig_scatter, use_container_width=True, config=PLOTLY_STATIC_CONFIG)
         else:
             st.info("조회 기간 내 품목 데이터가 없습니다.")
+
+    # Callout explaining the relationship between Hourly Sticker Speed (매/hr), Box Speed (박스/hr), and Difficulty (입량)
+    st.markdown("""
+    <div style="font-size: 13px; line-height: 1.65; color: #1e293b; background: #eff6ff; padding: 12px 16px; border-radius: 8px; border: 1px solid #bfdbfe; border-left: 4px solid #2563eb; margin-bottom: 10px;">
+        <div style="font-weight: 800; color: #1d4ed8; margin-bottom: 4px;">
+            ❓ 왜 고난이도(입량 32개↑) 품목인 '초콜릿/비스킷(빼빼로 등)'의 시간당 부착 속도(매/hr)가 높게 나타날까요?
+        </div>
+        <div style="margin-bottom: 4px;">
+            <strong>1) 완제품 박스 완성 속도(박스/hr) vs 낱개 연속 부착 속도(매/hr)의 차이:</strong>
+            박스당 40개가 들어있는 고입량 품목은 1박스를 완성하기 위해 40번의 라벨링과 재적재를 반복해야 하므로 <strong>시간당 완제품 박스 처리량(약 14박스/hr)은 가장 느리고 작업 피로도(체감 난이도)가 높습니다.</strong> 반면 박스를 한 번 개봉하면 이동 없이 한 자리에서 40개를 연속 부착할 수 있어 <strong>박스 개봉 및 테이핑 준비시간(Setup Time)이 절감되므로 순수 낱개 부착 속도(매/hr)는 높게 집계</strong>됩니다.
+        </div>
+        <div>
+            <strong>2) 일별 총 공수 비례배분 구조:</strong>
+            현재 현장 작업일지는 개별 품목별 스톱워치 측정이 아닌 <strong>당일 총 투입공수(인시)를 품목별 스티커 수량 비례로 배분</strong>합니다. 따라서 숙련 작업자가 대거 투입된 대량 발주일의 전체 라인 속도가 해당 품목군에 함께 반영됩니다.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Dynamic Operational Insight Engine for Tab 2 (Tab 1과 동일한 실시간 지능형 인사이트 제공)
     if not filtered_silver.empty and not filtered_item.empty:
@@ -1637,19 +1929,19 @@ with tab2:
                     <span style="color:#d97706; font-weight:700;">• 💡 현장 인력 배정 & 임가공 단가 가이드:</span> 시간당 300매 이하의 저속 병목 품목이나 입량 32개 이상의 고밀도 품목은 일반 품목 대비 2배 이상의 인시(Man-Hour)가 소요되므로, 라인 작업자를 사전 1~2명 증원하거나 <strong>임가공 스티커 부착 단가 할증(+30~50%)</strong>을 바이어와 사전 협상해야 공정 마진을 방어할 수 있습니다.
                 </div>
                 <div style="font-size: 11.5px; color: #64748b; margin-top: 8px; border-top: 1px dashed #cbd5e1; padding-top: 6px;">
-                    ※ 하단 <strong>[ℹ️ 공수 집계 방식(인·시) 및 단발성 품목 속도 산출 원리 안내]</strong>를 클릭하시면 일별 비례배분 원리 및 단발성 품목의 속도 산출 원리를 확인하실 수 있습니다.
+                    ※ 하단 <strong>[ℹ️ 공수 집계 방식(인시) 및 단발성 품목 속도 산출 원리 안내]</strong>를 클릭하시면 일별 비례배분 원리 및 단발성 품목의 속도 산출 원리를 확인하실 수 있습니다.
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
-    with st.expander("ℹ️ 공수 집계 방식(인·시) 및 단발성 품목 속도 산출 원리 안내", expanded=False):
+    with st.expander("ℹ️ 공수 집계 방식(인시) 및 단발성 품목 속도 산출 원리 안내", expanded=False):
         st.markdown("""
         <div style="font-size: 13px; line-height: 1.65; color: #334155; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; border-left: 4px solid #64748b;">
             <div style="margin-bottom: 6px;">
-                <span style="color:#1e293b; font-weight:700;">• 투입공수 단위(인·시, Man-Hour):</span> 작업자 1명이 1시간 동안 작업한 <strong>시간(Hours)</strong> 분량입니다 (분이 아닙니다). 예를 들어 <code>10.5</code>는 <code>10시간 30분</code> 분량의 노동력을 의미합니다.
+                <span style="color:#1e293b; font-weight:700;">• 투입공수 단위(인시, Man-Hour):</span> 작업자 1명이 1시간 동안 작업한 <strong>시간(Hours)</strong> 분량입니다 (분이 아닙니다). 예를 들어 <code>10.5</code>는 <code>10시간 30분</code> 분량의 노동력을 의미합니다.
             </div>
             <div style="margin-bottom: 6px;">
-                <span style="color:#1e293b; font-weight:700;">• 일별 비례배분 원리:</span> 현장 ERP 특성상 모든 개별 박스마다 스톱워치로 측정하지 않고, 당일 공장 전체의 총 공수(인·시)를 품목별 스티커 작업량에 비례하여 배분합니다.
+                <span style="color:#1e293b; font-weight:700;">• 일별 비례배분 원리:</span> 현장 ERP 특성상 모든 개별 박스마다 스톱워치로 측정하지 않고, 당일 공장 전체의 총 공수(인시)를 품목별 스티커 작업량에 비례하여 배분합니다.
             </div>
             <div>
                 <span style="color:#d97706; font-weight:700;">• 단발성 품목의 속도 왜곡 주의:</span> 조회 기간 내 1~2회만 작업된 단발성 품목(예: '미림/조미료')은 해당 작업일의 공장 전체 평균 속도(782매/hr 등)가 그대로 반영됩니다. 따라서 <strong>작업 3건 이상 반복된 품목 및 카테고리를 기준으로 생산성 벤치마크를 해석하는 것이 통계적으로 가장 정확</strong>합니다.
@@ -1840,7 +2132,7 @@ with tab3:
                 <div class="metric-label">수출 대상 국가 및 권역</div>
                 <div class="metric-value" style="color:#059669;">{curr_countries:,} <span style="font-size:16px; font-weight:600; color:#334155;">개 지역</span></div>
                 {badge_countries}
-                <div class="metric-sub">유럽·북미·오세아니아·아시아 등 글로벌 권역</div>
+                <div class="metric-sub">유럽, 북미, 오세아니아, 아시아 등 글로벌 권역</div>
             </div>
             <div class="metric-desc">ℹ️ 스티커 라벨 부착 품목이 수출 및 선적되는 목적지 국가/지역 수입니다.</div>
         </div>
@@ -1896,10 +2188,10 @@ with tab3:
         b_col1, b_col2 = st.columns([1, 1])
 
         with b_col1:
-            st.subheader("📊 주요 바이어별 실적 비중")
+            st.subheader("📊 주요 바이어별 실적 비중 및 순위")
             buyer_metric_choice = st.radio(
                 "집계 기준 선택",
-                ["스티커 수량 (매)", "출하 박스 수량 (박스)", "투입 공수 (인·시)"],
+                ["스티커 수량 (매)", "출하 박스 수량 (박스)", "투입 공수 (인시)"],
                 horizontal=True,
                 key="buyer_metric_choice"
             )
@@ -1907,36 +2199,54 @@ with tab3:
             metric_map = {
                 "스티커 수량 (매)": ("total_stickers", "매", "스티커 수량"),
                 "출하 박스 수량 (박스)": ("total_boxes", "박스", "출하 박스 수량"),
-                "투입 공수 (인·시)": ("allocated_man_hours", "인·시", "투입 공수")
+                "투입 공수 (인시)": ("allocated_man_hours", "인시", "투입 공수")
             }
             val_col, val_unit, val_label = metric_map[buyer_metric_choice]
 
             if not filtered_buyer.empty:
                 df_buyer_chart = filtered_buyer.sort_values(val_col, ascending=False).copy()
-                total_metric_val = df_buyer_chart[val_col].sum()
+                total_metric_val = float(df_buyer_chart[val_col].sum())
 
-                # Top 7 + Others
-                if len(df_buyer_chart) > 7:
-                    top7 = df_buyer_chart.head(7).copy()
-                    others_val = df_buyer_chart.iloc[7:][val_col].sum()
-                    others_boxes = df_buyer_chart.iloc[7:]["total_boxes"].sum()
-                    others_stk = df_buyer_chart.iloc[7:]["total_stickers"].sum()
+                # Top 8 + Others for Ranked Horizontal Bar Chart
+                if len(df_buyer_chart) > 8:
+                    top8 = df_buyer_chart.head(8).copy()
+                    others_val = df_buyer_chart.iloc[8:][val_col].sum()
+                    others_boxes = df_buyer_chart.iloc[8:]["total_boxes"].sum()
+                    others_stk = df_buyer_chart.iloc[8:]["total_stickers"].sum()
+                    others_hrs = df_buyer_chart.iloc[8:]["allocated_man_hours"].sum()
                     others_row = pd.DataFrame([{
-                        "buyer_normalized": f"기타 바이어 ({len(df_buyer_chart)-7}개사)",
-                        "export_country": "다수 국가",
+                        "buyer_normalized": f"기타 바이어 ({len(df_buyer_chart)-8}개사)",
+                        "export_country": "다수 국가/처",
                         "export_region": "글로벌",
                         val_col: others_val,
                         "total_stickers": others_stk,
                         "total_boxes": others_boxes,
-                        "top_items": "다양한 품목군"
+                        "allocated_man_hours": others_hrs,
+                        "top_items": "미확인 오더코드 및 소규모 거래처"
                     }])
-                    chart_data = pd.concat([top7, others_row], ignore_index=True)
+                    chart_data = pd.concat([top8, others_row], ignore_index=True)
                 else:
-                    chart_data = df_buyer_chart
+                    chart_data = df_buyer_chart.copy()
 
-                chart_data["pct_share"] = (chart_data[val_col] / max(1, total_metric_val) * 100).round(1)
+                chart_data["pct_share"] = (chart_data[val_col] / max(1.0, total_metric_val) * 100).round(1)
 
-                # Pre-formatted hover text in Python to guarantee 100% clean, bulleted tooltip
+                top3_b_val = float(df_buyer_chart.head(3)[val_col].sum())
+                top3_b_pct = round(top3_b_val / max(1.0, total_metric_val) * 100, 1)
+                top3_b_names = ", ".join(df_buyer_chart.head(3)["buyer_normalized"].astype(str).tolist())
+
+                st.markdown(
+                    f"<div style='font-size:12.5px; color:#334155; background:#f8fafc; padding:6px 10px; border-radius:6px; border-left:3px solid #2563eb; margin-bottom:6px;'>"
+                    f"📌 <b>핵심 요약:</b> 상위 3개 바이어(<b>{top3_b_names}</b>)가 전체 {val_label}의 <b>{top3_b_pct:.1f}%</b>를 차지합니다."
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+                def _fmt_buyer_bar_label(r):
+                    v = r[val_col]
+                    v_str = f"{v:,.1f}" if val_unit == "인시" else f"{int(round(v)):,}"
+                    return f"{v_str}{val_unit} ({r['pct_share']:.1f}%)"
+
+                chart_data["bar_label"] = chart_data.apply(_fmt_buyer_bar_label, axis=1)
                 chart_data["hover_text"] = chart_data.apply(
                     lambda r: (
                         f"<b>{r['buyer_normalized']}</b><br>"
@@ -1949,57 +2259,100 @@ with tab3:
                     axis=1
                 )
 
-                buyer_color_map = {b: get_buyer_color(b, i) for i, b in enumerate(chart_data["buyer_normalized"])}
+                # Strategic Contrast: Top 3 in Accent Blue (#2563eb), Rank 4~8 in Slate (#64748b), Others in Muted Slate (#94a3b8)
+                chart_data["bar_color"] = [
+                    "#2563eb" if i < 3 and not str(r["buyer_normalized"]).startswith("기타")
+                    else ("#94a3b8" if str(r["buyer_normalized"]).startswith("기타") else "#64748b")
+                    for i, (_, r) in enumerate(chart_data.iterrows())
+                ]
 
-                fig_buyer_pie = px.pie(
-                    chart_data,
-                    names="buyer_normalized",
-                    values=val_col,
-                    hole=0.45,
-                    color="buyer_normalized",
-                    color_discrete_map=buyer_color_map
-                )
-                fig_buyer_pie.update_traces(
-                    customdata=chart_data["hover_text"],
-                    hoverlabel=common_hoverlabel_tab3,
+                chart_data_asc = chart_data.iloc[::-1].reset_index(drop=True)
+                max_b_x = float(chart_data_asc[val_col].max()) if not chart_data_asc.empty else 1.0
+
+                fig_buyer_bar = go.Figure(go.Bar(
+                    x=chart_data_asc[val_col],
+                    y=chart_data_asc["buyer_normalized"],
+                    orientation="h",
+                    text=chart_data_asc["bar_label"],
+                    textposition="outside",
+                    marker_color=chart_data_asc["bar_color"],
+                    customdata=chart_data_asc["hover_text"],
                     hovertemplate="%{customdata}<extra></extra>",
-                    textinfo="percent+label",
-                    textposition="inside"
-                )
-                fig_buyer_pie.update_layout(
+                    hoverlabel=common_hoverlabel_tab3
+                ))
+                fig_buyer_bar.update_layout(
                     dragmode=False,
-                    height=420,
-                    margin=dict(l=10, r=10, t=10, b=10),
-                    legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
+                    height=405,
+                    margin=dict(l=10, r=115, t=10, b=10),
+                    showlegend=False,
+                    xaxis=dict(title=f"{val_label} ({val_unit})", tickformat=",d", showgrid=True, fixedrange=True, range=[0, max_b_x * 1.36]),
+                    yaxis=dict(title="바이어 / 거래처", fixedrange=True)
                 )
-                st.plotly_chart(fig_buyer_pie, use_container_width=True, config=PLOTLY_STATIC_CONFIG)
+                st.plotly_chart(fig_buyer_bar, use_container_width=True, config=PLOTLY_STATIC_CONFIG)
+                st.caption("ℹ️ 현업 확인 완료된 작업코드 **D01**은 **해태제과**로 통합 매핑되었으며, 미확인 작업코드 99건은 바이어 마스터(`buyer_dimension_review_list.csv`) 회신 후 추가 반영됩니다.")
             else:
                 st.info("조회 기간 내 바이어 데이터가 없습니다.")
 
         with b_col2:
             st.subheader("🌐 주요 수출 국가 및 권역별 작업량")
-            country_view_choice = st.radio(
-                "수출 집계 기준",
-                ["수출 대상국별 (권역 색상 구분)", "글로벌 권역별 합계 (대륙 단위)"],
-                horizontal=True,
-                key="country_view_choice"
-            )
+            cv_c1, cv_c2 = st.columns([1.35, 1.15])
+            with cv_c1:
+                country_view_choice = st.radio(
+                    "수출 집계 기준",
+                    ["수출 대상국별 (권역 색상 구분)", "글로벌 권역별 합계 (대륙 단위)"],
+                    horizontal=True,
+                    key="country_view_choice"
+                )
+            with cv_c2:
+                only_confirmed_countries = st.checkbox(
+                    "확인된 수출 대상국만 보기 (권장)",
+                    value=True,
+                    key="only_confirmed_countries_toggle",
+                    help="체크 시 국내 수출 벤더사(거복/한상 등) 및 미확인 오더코드를 제외하고, 최종 도착 국가가 확인된 순수 해외 국가(캐나다, 오스트리아, 몽골, 독일, 미국, 호주 등)만 비교합니다."
+                )
 
+            NON_COUNTRY_LABELS = {"수출 벤더사", "수출 오더코드", "기타 수출처"}
             if not filtered_country.empty:
-                if country_view_choice == "수출 대상국별 (권역 색상 구분)":
-                    df_country_chart = filtered_country.sort_values("total_stickers", ascending=True).copy()
+                if only_confirmed_countries:
+                    base_country_df = filtered_country[~filtered_country["export_country"].isin(NON_COUNTRY_LABELS)].copy()
+                    if base_country_df.empty:
+                        base_country_df = filtered_country.copy()
+                else:
+                    base_country_df = filtered_country.copy()
 
+                sub_total_stk = float(base_country_df["total_stickers"].sum())
+                base_country_df["sub_share_pct"] = (base_country_df["total_stickers"] / max(1.0, sub_total_stk) * 100).round(1)
+
+                if country_view_choice == "수출 대상국별 (권역 색상 구분)":
+                    df_country_desc = base_country_df.sort_values("total_stickers", ascending=False).copy()
+                    top_cnt_row = df_country_desc.iloc[0]
+                    scope_tag = "확인된 해외 수출국 기준" if only_confirmed_countries else "전체 출하처 기준"
+
+                    st.markdown(
+                        f"<div style='font-size:12.5px; color:#334155; background:#f8fafc; padding:6px 10px; border-radius:6px; border-left:3px solid #059669; margin-bottom:6px;'>"
+                        f"📌 <b>핵심 요약 ({scope_tag}):</b> 1위 수출 대상국은 <b>{top_cnt_row['export_country']}</b>"
+                        f"({int(top_cnt_row['total_stickers']):,}매, <b>{top_cnt_row['sub_share_pct']:.1f}%</b>)입니다."
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
+
+                    df_country_chart = df_country_desc.head(12).iloc[::-1].copy()
+                    df_country_chart["bar_label"] = df_country_chart.apply(
+                        lambda r: f"{int(r['total_stickers']):,}매 ({r['sub_share_pct']:.1f}%)", axis=1
+                    )
                     df_country_chart["hover_text"] = df_country_chart.apply(
                         lambda r: (
                             f"<b>{r['export_country']}</b> (권역: <b>{r['export_region']}</b>)<br>"
-                            f"• 스티커 작업량: <b>{r['total_stickers']:,.0f} 매</b> (점유율: <b>{r['sticker_share_pct']:.1f}%</b>)<br>"
-                            f"• 출하 박스 수량: <b>{r['total_boxes']:,.0f} 박스</b> (점유율: <b>{r['box_share_pct']:.1f}%</b>)<br>"
-                            f"• 투입 공수: <b>{r['allocated_man_hours']:,.1f} 인·시</b><br>"
+                            f"• 스티커 작업량: <b>{r['total_stickers']:,.0f} 매</b> (국가 내 비중: <b>{r['sub_share_pct']:.1f}%</b> / 전체 대비: {r['sticker_share_pct']:.1f}%)<br>"
+                            f"• 출하 박스 수량: <b>{r['total_boxes']:,.0f} 박스</b><br>"
+                            f"• 투입 공수: <b>{r['allocated_man_hours']:,.1f} 인시</b><br>"
                             f"• 거래 바이어 수: <b>{r['distinct_buyers']} 개사</b><br>"
                             f"• 주요 출하품목: <i>{r['top_items']}</i>"
                         ),
                         axis=1
                     )
+
+                    max_c_x = float(df_country_chart["total_stickers"].max()) if not df_country_chart.empty else 1.0
 
                     fig_country_bar = px.bar(
                         df_country_chart,
@@ -2009,50 +2362,63 @@ with tab3:
                         color="export_region",
                         color_discrete_map=REGION_COLORS,
                         custom_data=["hover_text"],
-                        text="total_stickers",
-                        barmode="stack"
+                        text="bar_label",
+                        labels={"export_country": "수출 대상국", "total_stickers": "총 스티커 작업량 (매)", "export_region": "수출 권역"},
+                        category_orders={"export_country": df_country_chart["export_country"].tolist()}
                     )
                     fig_country_bar.update_traces(
                         marker_opacity=1.0,
-                        texttemplate="%{x:,.0f} 매",
                         textposition="outside",
                         hoverlabel=common_hoverlabel_tab3,
                         hovertemplate="%{customdata[0]}<extra></extra>"
                     )
                     fig_country_bar.update_layout(
                         dragmode=False,
-                        height=420,
-                        margin=dict(l=10, r=40, t=10, b=10),
-                        xaxis=dict(title="총 스티커 작업량 (매)", fixedrange=True),
-                        yaxis=dict(fixedrange=True),
+                        height=405,
+                        margin=dict(l=10, r=115, t=10, b=10),
+                        xaxis=dict(title="총 스티커 작업량 (매)", tickformat=",d", showgrid=True, fixedrange=True, range=[0, max_c_x * 1.36]),
+                        yaxis=dict(title="수출 대상국", fixedrange=True),
                         legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5, title="수출 권역")
                     )
                     st.plotly_chart(fig_country_bar, use_container_width=True, config=PLOTLY_STATIC_CONFIG)
 
                 else:
                     # 글로벌 권역별 합계 (대륙 단위)
-                    df_region_chart = filtered_country.groupby("export_region").agg(
+                    df_region_chart = base_country_df.groupby("export_region").agg(
                         total_stickers=("total_stickers", "sum"),
                         total_boxes=("total_boxes", "sum"),
                         allocated_man_hours=("allocated_man_hours", "sum"),
                         distinct_countries=("export_country", "nunique")
                     ).reset_index()
-                    # 기간 내 실적이 있는 권역만 필터링 (0건인 오세아니아/유라시아 등이 Y축에 노출되지 않도록 방지)
                     df_region_chart = df_region_chart[df_region_chart["total_stickers"] > 0]
-                    df_region_chart["sticker_share_pct"] = (df_region_chart["total_stickers"] / max(1, total_stickers) * 100).round(1)
+                    df_region_chart["sticker_share_pct"] = (df_region_chart["total_stickers"] / max(1.0, sub_total_stk) * 100).round(1)
                     df_region_chart["box_share_pct"] = (df_region_chart["total_boxes"] / max(1, total_boxes) * 100).round(1)
                     df_region_chart = df_region_chart.sort_values("total_stickers", ascending=True)
 
+                    top_reg_row = df_region_chart.iloc[-1]
+                    st.markdown(
+                        f"<div style='font-size:12.5px; color:#334155; background:#f8fafc; padding:6px 10px; border-radius:6px; border-left:3px solid #059669; margin-bottom:6px;'>"
+                        f"📌 <b>핵심 요약:</b> 최다 수출 권역은 <b>{top_reg_row['export_region']}</b>"
+                        f"({int(top_reg_row['total_stickers']):,}매, <b>{top_reg_row['sticker_share_pct']:.1f}%</b>)입니다."
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
+
+                    df_region_chart["bar_label"] = df_region_chart.apply(
+                        lambda r: f"{int(r['total_stickers']):,}매 ({r['sticker_share_pct']:.1f}%)", axis=1
+                    )
                     df_region_chart["hover_text"] = df_region_chart.apply(
                         lambda r: (
                             f"<b>{r['export_region']}</b> 권역 전체<br>"
-                            f"• 총 스티커 작업량: <b>{r['total_stickers']:,.0f} 매</b> (점유율: <b>{r['sticker_share_pct']:.1f}%</b>)<br>"
-                            f"• 총 출하 박스 수량: <b>{r['total_boxes']:,.0f} 박스</b> (점유율: <b>{r['box_share_pct']:.1f}%</b>)<br>"
-                            f"• 총 투입 공수: <b>{r['allocated_man_hours']:,.1f} 인·시</b><br>"
+                            f"• 총 스티커 작업량: <b>{r['total_stickers']:,.0f} 매</b> (권역 비중: <b>{r['sticker_share_pct']:.1f}%</b>)<br>"
+                            f"• 총 출하 박스 수량: <b>{r['total_boxes']:,.0f} 박스</b><br>"
+                            f"• 총 투입 공수: <b>{r['allocated_man_hours']:,.1f} 인시</b><br>"
                             f"• 포함 수출국가/처: <b>{r['distinct_countries']} 개 지역</b>"
                         ),
                         axis=1
                     )
+
+                    max_r_x = float(df_region_chart["total_stickers"].max()) if not df_region_chart.empty else 1.0
 
                     fig_region_bar = px.bar(
                         df_region_chart,
@@ -2062,21 +2428,21 @@ with tab3:
                         color="export_region",
                         color_discrete_map=REGION_COLORS,
                         custom_data=["hover_text"],
-                        text="total_stickers"
+                        text="bar_label",
+                        labels={"export_region": "수출 권역", "total_stickers": "총 스티커 작업량 (매)"}
                     )
                     fig_region_bar.update_traces(
                         marker_opacity=1.0,
-                        texttemplate="%{x:,.0f} 매",
                         textposition="outside",
                         hoverlabel=common_hoverlabel_tab3,
                         hovertemplate="%{customdata[0]}<extra></extra>"
                     )
                     fig_region_bar.update_layout(
                         dragmode=False,
-                        height=420,
-                        margin=dict(l=10, r=40, t=10, b=10),
-                        xaxis=dict(title="총 스티커 작업량 (매)", fixedrange=True),
-                        yaxis=dict(fixedrange=True),
+                        height=405,
+                        margin=dict(l=10, r=115, t=10, b=10),
+                        xaxis=dict(title="총 스티커 작업량 (매)", tickformat=",d", showgrid=True, fixedrange=True, range=[0, max_r_x * 1.36]),
+                        yaxis=dict(title="수출 권역", fixedrange=True),
                         showlegend=False
                     )
                     st.plotly_chart(fig_region_bar, use_container_width=True, config=PLOTLY_STATIC_CONFIG)
@@ -2183,7 +2549,7 @@ with tab3:
                 "active_days": "가동일수(일)",
                 "total_boxes": "출하 박스수(박스)",
                 "total_stickers": "총 스티커수량(매)",
-                "allocated_man_hours": "투입공수(인·시)",
+                "allocated_man_hours": "투입공수(인시)",
                 "distinct_items": "취급 품목수(종)",
                 "sticker_share_pct": "스티커 점유율(%)",
                 "box_share_pct": "출하 박스 점유율(%)",
@@ -2192,7 +2558,7 @@ with tab3:
 
             cols_to_show = [
                 "바이어/출하처", "수출국가", "수출권역", "주문건수(건)", "가동일수(일)",
-                "출하 박스수(박스)", "총 스티커수량(매)", "투입공수(인·시)", "취급 품목수(종)",
+                "출하 박스수(박스)", "총 스티커수량(매)", "투입공수(인시)", "취급 품목수(종)",
                 "스티커 점유율(%)", "출하 박스 점유율(%)", "주요 출하품목 Top 3"
             ]
 
@@ -2203,7 +2569,7 @@ with tab3:
                         "가동일수(일)": "{:,.0f}",
                         "출하 박스수(박스)": "{:,.0f}",
                         "총 스티커수량(매)": "{:,.0f}",
-                        "투입공수(인·시)": "{:,.1f}",
+                        "투입공수(인시)": "{:,.1f}",
                         "취급 품목수(종)": "{:,.0f}",
                         "스티커 점유율(%)": "{:.2f}%",
                         "출하 박스 점유율(%)": "{:.2f}%"
@@ -2310,7 +2676,7 @@ with tab3:
                 height=420,
                 margin=dict(l=10, r=20, t=45, b=10),
                 xaxis=dict(fixedrange=True, type='category', title=f"{time_label} 집계 기간"),
-                yaxis=dict(title="스티커 작업량 (매)", fixedrange=True),
+                yaxis=dict(title="스티커 작업량 (매)", tickformat=",d", fixedrange=True),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title=None),
                 hoverlabel=common_hoverlabel_tab3
             )
@@ -2321,29 +2687,38 @@ with tab3:
             st.markdown("#### 🩺 고객 건강도 스코어카드 & 이탈 조기 경보 (Customer Health Matrix)")
             st.caption("최근 2개 활동 기간 간 발주 변동률을 추적하여 이탈 위험(At-Risk), 급성장(High-Growth), 신규/재개 거래처를 선제적으로 분류합니다.")
 
+            avail_m_list = sorted(base_trend_df["work_month"].dropna().unique())
+            latest_m_pair = (avail_m_list[-2], avail_m_list[-1]) if len(avail_m_list) >= 2 else ("2026-10", "2026-11")
+            prev_m_pair = (avail_m_list[-3], avail_m_list[-2]) if len(avail_m_list) >= 3 else ("2026-09", "2026-10")
+
             # Choose comparison baseline
             h_c1, h_c2 = st.columns([1.2, 1.8])
             with h_c1:
                 health_basis = st.selectbox(
                     "건강도 비교 기준 기간",
                     [
-                        "최근 활성 2개월 비교 (2026-08 vs 2026-09)",
-                        "직전 분기 비교 (2026Q2 vs 2026Q3)",
-                        "전반기 분기 비교 (2026Q1 vs 2026Q2)"
+                        f"최근 2개월 비교 ({latest_m_pair[0]} vs {latest_m_pair[1]})",
+                        f"직전 2개월 비교 ({prev_m_pair[0]} vs {prev_m_pair[1]})",
+                        "최근 분기 비교 (2026Q3 vs 2026Q4)",
+                        "직전 분기 비교 (2026Q2 vs 2026Q3)"
                     ],
                     key="health_basis_select"
                 )
 
-            if "2026-08 vs 2026-09" in health_basis:
-                p_period, c_period = "2026-08", "2026-09"
+            if f"{latest_m_pair[0]} vs {latest_m_pair[1]}" in health_basis:
+                p_period, c_period = latest_m_pair[0], latest_m_pair[1]
                 p_col_grp = "work_month"
                 period_title = "월간(MoM)"
-            elif "2026Q2 vs 2026Q3" in health_basis:
-                p_period, c_period = "2026Q2", "2026Q3"
+            elif f"{prev_m_pair[0]} vs {prev_m_pair[1]}" in health_basis:
+                p_period, c_period = prev_m_pair[0], prev_m_pair[1]
+                p_col_grp = "work_month"
+                period_title = "월간(MoM)"
+            elif "2026Q3 vs 2026Q4" in health_basis:
+                p_period, c_period = "2026Q3", "2026Q4"
                 p_col_grp = "quarter"
                 period_title = "분기(QoQ)"
             else:
-                p_period, c_period = "2026Q1", "2026Q2"
+                p_period, c_period = "2026Q2", "2026Q3"
                 p_col_grp = "quarter"
                 period_title = "분기(QoQ)"
 
@@ -2723,7 +3098,7 @@ with tab4:
                     "pack_qty": st.column_config.NumberColumn("입량 (개/박스)", min_value=1, step=1, required=True)
                 }
             )
-            st.caption("💡 표 하단의 빈 행에 품목을 추가하거나, 기존 행의 품목·박스수량·입량을 직접 수정하여 납기와 필요 인원을 즉시 시뮬레이션할 수 있습니다.")
+            st.caption("💡 표 하단의 빈 행에 품목을 추가하거나, 기존 행의 품목, 박스수량, 입량을 직접 수정하여 납기와 필요 인원을 즉시 시뮬레이션할 수 있습니다.")
 
         with in_col2:
             st.subheader("⚙️ 현장 인력 및 근무 파라미터")
@@ -2763,7 +3138,7 @@ with tab4:
             st.markdown(f"""
             <div style="font-size: 12.5px; line-height: 1.55; color: #1e3a8a; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; margin-top: 4px;">
                 💡 <strong>1인당 일 가동 시간: {effective_hours_total:.1f}시간</strong> (정규 {shift_hours:.1f}h + 잔업 {overtime_hours:.1f}h)<br/>
-                👥 <strong>가용 팀 총 가동력:</strong> <span style="color:#2563eb; font-weight:700;">{sim_workers * effective_hours_total:,.1f} 인·시/일</span> ({sim_workers}명 기준)
+                👥 <strong>가용 팀 총 가동력:</strong> <span style="color:#2563eb; font-weight:700;">{sim_workers * effective_hours_total:,.1f} 인시/일</span> ({sim_workers}명 기준)
             </div>
             """, unsafe_allow_html=True)
 
@@ -2818,7 +3193,7 @@ with tab4:
                 <div class="metric-card">
                     <div class="metric-top">
                         <div class="metric-label">필요 총 공수 (누적 Man-Hours)</div>
-                        <div class="metric-value" style="color:#7c3aed;">{total_hrs:,.1f} <span style="font-size:16px; font-weight:600; color:#334155;">인·시</span></div>
+                        <div class="metric-value" style="color:#7c3aed;">{total_hrs:,.1f} <span style="font-size:16px; font-weight:600; color:#334155;">인시</span></div>
                         <div class="metric-delta delta-pos" style="background-color:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe;">
                             <span>⚡ 벤치마크 속도: <strong>{batch_speed:,.1f} 매/hr</strong></span>
                         </div>
@@ -2893,13 +3268,13 @@ with tab4:
                 # Calculate recommended worker allocation per item based on current sim_workers
                 df_det["alloc_workers"] = (sim_workers * (df_det["share_pct"] / 100.0)).round(1)
                 df_det["bar_text"] = df_det.apply(
-                    lambda r: f"{r['required_hours']:.1f} 인·시 (권장 {r['alloc_workers']:.1f}명)", axis=1
+                    lambda r: f"{r['required_hours']:.1f} 인시 (권장 {r['alloc_workers']:.1f}명)", axis=1
                 )
 
                 df_det["hover_text"] = df_det.apply(
                     lambda r: (
                         f"<b>{r['item_name']}</b> ({r['difficulty_tier']})<br>"
-                        f"• 예상 소요 공수: <b>{r['required_hours']:.1f} 인·시</b> (점유율: <b>{r['share_pct']:.1f}%</b>)<br>"
+                        f"• 예상 소요 공수: <b>{r['required_hours']:.1f} 인시</b> (점유율: <b>{r['share_pct']:.1f}%</b>)<br>"
                         f"• 👥 <b>현재 가용 {sim_workers}명 중 권장 배치: <span style=\"color:#2563eb;\">약 {r['alloc_workers']:.1f}명</span></b><br>"
                         f"• 작업 수량: <b>{r['work_qty']:,} 박스</b> (입량: {r['pack_qty']}개/박스)<br>"
                         f"• 총 스티커량: <b>{r['sticker_qty']:,} 매</b><br>"
@@ -2929,7 +3304,7 @@ with tab4:
                     dragmode=False,
                     height=400,
                     margin=dict(l=10, r=40, t=10, b=10),
-                    xaxis=dict(title="소요 공수 (인·시)", fixedrange=True),
+                    xaxis=dict(title="소요 공수 (인시)", fixedrange=True),
                     yaxis=dict(fixedrange=True),
                     legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5, title="난이도 구분")
                 )
@@ -3007,7 +3382,7 @@ with tab4:
             top_item = df_det.sort_values("required_hours", ascending=False).iloc[0]
 
 
-            bn_text = f"이번 시뮬레이션 오더 중 <strong>{top_item['item_name']}</strong>에 <strong>{top_item['required_hours']:.1f} 인·시(전체 공수의 {top_item['share_pct']:.1f}%)</strong>가 집중 투입됩니다. 박스당 입량({top_item['pack_qty']}개)이 많아 라인 정체가 발생할 수 있으므로 숙련 인력을 우선 배치하십시오."
+            bn_text = f"이번 시뮬레이션 오더 중 <strong>{top_item['item_name']}</strong>에 <strong>{top_item['required_hours']:.1f} 인시(전체 공수의 {top_item['share_pct']:.1f}%)</strong>가 집중 투입됩니다. 박스당 입량({top_item['pack_qty']}개)이 많아 라인 정체가 발생할 수 있으므로 숙련 인력을 우선 배치하십시오."
 
             if sim_workers >= req_workers:
                 target_badge = '<span style="color:#16a34a; font-weight:700;">• 목표 납기 달성 안정성:</span>'
@@ -3052,7 +3427,7 @@ with tab4:
                 "pack_qty": "입량 (개/박스)",
                 "sticker_qty": "총 스티커수량 (매)",
                 "benchmark_speed_hr": "벤치마크 속도 (매/hr)",
-                "required_hours": "예상 소요공수 (인·시)",
+                "required_hours": "예상 소요공수 (인시)",
                 "share_pct": "공수 점유율 (%)",
                 "alloc_workers": "권장 배치인원 (명)"
             })
@@ -3063,7 +3438,7 @@ with tab4:
                     "입량 (개/박스)": "{:,.0f}",
                     "총 스티커수량 (매)": "{:,.0f}",
                     "벤치마크 속도 (매/hr)": "{:,.1f}",
-                    "예상 소요공수 (인·시)": "{:,.1f}",
+                    "예상 소요공수 (인시)": "{:,.1f}",
                     "공수 점유율 (%)": "{:.1f}%",
                     "권장 배치인원 (명)": "{:.1f}명"
                 }),
@@ -3194,7 +3569,7 @@ with tab4:
                     <div class="metric-top">
                         <div class="metric-label">👷 총 투입 인건비 원가 (Labor Cost)</div>
                         <div class="metric-value" style="color:#ea580c;">{tot_cost:,.0f} <span style="font-size:16px; font-weight:600; color:#334155;">원</span></div>
-                        <div class="metric-sub">총 투입공수 <strong>{tot_hours_m:,.1f}</strong> 인·시 × <strong>{hourly_wage:,}</strong>원</div>
+                        <div class="metric-sub">총 투입공수 <strong>{tot_hours_m:,.1f}</strong> 인시 × <strong>{hourly_wage:,}</strong>원</div>
                     </div>
                     <div class="metric-desc">실제 오더별 비례 배분 공수에 현장 시급을 곱한 직접 인건비 원가입니다.</div>
                 </div>
@@ -3220,7 +3595,7 @@ with tab4:
                         <div class="metric-value" style="color:#7c3aed;">{profit_sign}{margin_per_box:,.0f} <span style="font-size:16px; font-weight:600; color:#334155;">원/박스</span></div>
                         <div class="metric-sub">출하 1박스당 순수 남는 공정 이익</div>
                     </div>
-                    <div class="metric-desc">박스 1개를 포장·라벨링 완료했을 때 기여하는 평균 공정 이익입니다.</div>
+                    <div class="metric-desc">박스 1개를 포장 및 라벨링 완료했을 때 기여하는 평균 공정 이익입니다.</div>
                 </div>
                 ''', unsafe_allow_html=True)
 
@@ -3445,7 +3820,7 @@ with tab4:
 # ---------------------------------------------------------
 with tab5:
     st.markdown("### 🛡️ 데이터 품질(DQ) & 마스터 데이터 관리(MDM) 센터")
-    st.caption("A4 수기 원장부터 OCR, 스프레드시트로 이어진 원천 데이터의 무결성을 상시 검수하고, 품목·제조사·바이어 차원 모델을 통합 관리합니다.")
+    st.caption("A4 수기 원장부터 OCR, 스프레드시트로 이어진 원천 데이터의 무결성을 상시 검수하고, 품목, 제조사, 바이어 차원 모델을 통합 관리합니다.")
 
     # Data Pedigree Callout (Custom compact 13px styled card)
     st.markdown("""
@@ -3510,9 +3885,9 @@ with tab5:
                 <div class="metric-label">표준 마스터 엔티티</div>
                 <div class="metric-value" style="color:#7c3aed;">{len(df_dim_item):,} <span style="font-size:16px; font-weight:600;">SKUs</span></div>
                 <span class="badge badge-neutral">차원 모델 구축 완료</span>
-                <div class="metric-sub">제조사 <strong>{len(df_dim_mfg)}</strong>사 · 바이어 <strong>{len(df_dim_buyer)}</strong>개사</div>
+                <div class="metric-sub">제조사 <strong>{len(df_dim_mfg)}</strong>사 | 바이어 <strong>{len(df_dim_buyer)}</strong>개사</div>
             </div>
-            <div class="metric-desc">ℹ️ 품목·제조사·바이어 3대 차원 마스터가 등록 관리됩니다.</div>
+            <div class="metric-desc">ℹ️ 품목, 제조사, 바이어 3대 차원 마스터가 등록 관리됩니다.</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -3742,7 +4117,7 @@ with tab5:
     # -------------------------------------------------------------
     with subtab4:
         st.markdown("#### 🔀 품목 데이터 계보 및 통합 맵 (`Item Lineage & Consolidation Map`)")
-        st.caption("현장 작업일지에서 수기 기입 편차(오타, 띄어쓰기, 영문 대소문자, 약어)로 분열되어 기록되던 원천 텍스트들이 표준 마스터 품목으로 어떻게 정규화·통합되었는지 시각적 계보를 추적합니다.")
+        st.caption("현장 작업일지에서 수기 기입 편차(오타, 띄어쓰기, 영문 대소문자, 약어)로 분열되어 기록되던 원천 텍스트들이 표준 마스터 품목으로 어떻게 정규화 및 통합되었는지 시각적 계보를 추적합니다.")
 
         lineage_df, multi_variant_items, items_catalog = build_lineage_dataset(silver_df, df_dim_item)
         variant_counts = lineage_df.groupby("normalized_item_name")["item_name"].nunique()
@@ -3854,10 +4229,10 @@ with tab5:
             <div>
                 <span class="badge badge-neutral" style="font-weight:700; font-size:13px;">{sku_code}</span>
                 <strong style="font-size:18px; color:#0f172a; margin-left:8px;">{sel_insp_item}</strong>
-                <div style="font-size:13px; color:#64748b; margin-top:4px;">제조사: <strong>{mfg_name}</strong> · 분류: <strong>{cat_full}</strong> · 표준규격: <strong>{std_vol}</strong> · 기본입수량: <strong>{pack_q}개/박스</strong> · 기준속도: <strong>{b_speed}매/h</strong></div>
+                <div style="font-size:13px; color:#64748b; margin-top:4px;">제조사: <strong>{mfg_name}</strong> | 분류: <strong>{cat_full}</strong> | 표준규격: <strong>{std_vol}</strong> | 기본입수량: <strong>{pack_q}개/박스</strong> | 기준속도: <strong>{b_speed}매/h</strong></div>
             </div>
             <div style="text-align:right;">
-                <div style="font-size:13px; color:#64748b;">수기 표기 <strong>{len(item_lineage)}종</strong> 수렴 · 총 실적 <strong>{item_total_rows:,}건</strong></div>
+                <div style="font-size:13px; color:#64748b;">수기 표기 <strong>{len(item_lineage)}종</strong> 수렴 | 총 실적 <strong>{item_total_rows:,}건</strong></div>
                 <div style="font-size:22px; font-weight:800; color:#2563eb;">{item_total_stk:,.0f} <span style="font-size:14px; font-weight:600;">매</span></div>
             </div>
         </div>
@@ -4003,7 +4378,7 @@ with tab6:
                 <div class="metric-label">3. 마스터 차원 (Dimensions)</div>
                 <div class="metric-value" style="color:#16a34a; font-size:22px;">3대 차원 모델</div>
                 <span class="badge badge-neutral">MDM 구축 완료</span>
-                <div class="metric-sub">품목 {len(df_dim_item)} · 제조 {len(df_dim_mfg)} · 바이어 {len(df_dim_buyer)}</div>
+                <div class="metric-sub">품목 {len(df_dim_item)} | 제조 {len(df_dim_mfg)} | 바이어 {len(df_dim_buyer)}</div>
             </div>
             <div class="metric-desc">ℹ️ 기준 정보(MDM) 단일 진실 공급원</div>
         </div>
@@ -4016,7 +4391,7 @@ with tab6:
                 <div class="metric-label">4. 분석 마트 계층 (Gold)</div>
                 <div class="metric-value" style="color:#7c3aed; font-size:22px;">4대 Gold Marts</div>
                 <span class="badge badge-pos">집계 실시간 가동</span>
-                <div class="metric-sub">일자·품목·바이어·시뮬레이터</div>
+                <div class="metric-sub">일자, 품목, 바이어, 시뮬레이터</div>
             </div>
             <div class="metric-desc">ℹ️ 경영진 KPI 분석 및 월간 결산 리포트 서빙</div>
         </div>
@@ -4128,7 +4503,7 @@ with tab6:
                 color="#2563eb";
                 bgcolor="#eff6ff";
 
-                silver_fact [label="🥈 silver_sticker_work_log\\n({n_silver:,}행 Fact + 24개 컬럼 + 인·시)", fillcolor="#ffffff", color="#2563eb", penwidth=2.5];
+                silver_fact [label="🥈 silver_sticker_work_log\\n({n_silver:,}행 Fact + 24개 컬럼 + 인시)", fillcolor="#ffffff", color="#2563eb", penwidth=2.5];
             }}
 
             subgraph cluster_5 {{
@@ -4196,7 +4571,7 @@ with tab6:
                     <strong>Stage 2 & 3. 품질 검증 & 마스터 결합:</strong> <code>pack_qty * work_qty == sticker_qty</code> 수량 검증 + 4단계 품목 정규화 + 3대 디멘전(품목 <strong>{n_item:,}종</strong>, 제조 <strong>{n_mfg:,}개사</strong>, 바이어 <strong>{n_buyer:,}개사</strong>)
                 </div>
                 <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-left: 5px solid #2563eb; border-radius: 6px; padding: 12px 16px;">
-                    <strong>Stage 4. Silver Fact 계층:</strong> <strong>{n_silver:,}행 Fact</strong> + 24개 컬럼 + 투입 인·시(Man-Hours) 결합 단일 진실 테이블
+                    <strong>Stage 4. Silver Fact 계층:</strong> <strong>{n_silver:,}행 Fact</strong> + 24개 컬럼 + 투입 인시(Man-Hours) 결합 단일 진실 테이블
                 </div>
                 <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-left: 5px solid #7c3aed; border-radius: 6px; padding: 12px 16px;">
                     <strong>Stage 5. Gold Analytics Marts:</strong> 일자별 생산성(<strong>{n_days:,}일 가동</strong>), 품목별 벤치마크 속도/난이도, 바이어별 점유율, 공수 예측 모델
@@ -4465,7 +4840,7 @@ with tab6:
                     ("export_country", "수출 대상국", "string", "바이어 소재 수출 대상 국가"),
                     ("export_region", "글로벌 권역", "string", "대륙별 글로벌 권역 (북미, 유럽, 아시아 등)"),
                     ("effective_worker_count", "투입 인원수", "float", "당일 작업자 수 (누락 시 보정치 적용)"),
-                    ("total_worker_hours", "투입 공수", "float", "당일 총 투입 인·시 (Man-Hours)"),
+                    ("total_worker_hours", "투입 공수", "float", "당일 총 투입 인시 (Man-Hours)"),
                     ("stickers_per_man_hour", "시간당 부착속도", "float", "인당 1시간당 스티커 부착 수량 (속도)")
                 ]
             },
@@ -4585,7 +4960,7 @@ with tab6:
                     ("total_stickers", "총 스티커수", "int", "당일 총 부착 스티커 수량"),
                     ("total_boxes", "총 출하박스", "int", "당일 총 출하 박스 수량"),
                     ("worker_count", "투입 인원", "float", "당일 현장 작업자 수"),
-                    ("total_worker_hours", "총 투입공수", "float", "당일 총 투입 인·시 (Man-Hours)"),
+                    ("total_worker_hours", "총 투입공수", "float", "당일 총 투입 인시 (Man-Hours)"),
                     ("stickers_per_man_hour", "시간당 부착량", "float", "인당 1시간당 스티커 부착 속도"),
                     ("boxes_per_man_hour", "시간당 박스량", "float", "인당 1시간당 출하 박스 처리 속도")
                 ]

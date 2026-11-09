@@ -858,7 +858,7 @@
 <tr>
 <td style="text-align: left;"><strong>총 투입 공수 (Man-Hours)</strong></td>
 <td style="text-align: left;"><span class="math-expr"><span class="math-sym">&sum;</span> <code class="math-code">row_man_hours</code></span></td>
-<td style="text-align: center;">인·시</td>
+<td style="text-align: center;">인시</td>
 <td style="text-align: left;">• 현장 작업 인력의 실제 누적 가동 공수.<br/>• 일자별 투입 인원 &times; 8시간(정규)을 오더별 스티커 작업량에 비례 배분한 값.<br/>• 하단에 <strong>총 가동일수</strong> 및 <strong>일평균 투입 인원(명/일)</strong> 표시.</td>
 </tr>
 <tr>
@@ -937,7 +937,7 @@
 <h3 id="31-overview">서브탭 3.1: 📊 바이어 및 수출국가 종합 실적 (Overview)</h3>
 <ul>
 <li><strong>주요 바이어별 실적 비중 (파이 차트)</strong>:</li>
-<li>집계 기준 전환: <code>스티커 수량 (매)</code>, <code>출하 박스 수량 (박스)</code>, <code>투입 공수 (인·시)</code>.</li>
+<li>집계 기준 전환: <code>스티커 수량 (매)</code>, <code>출하 박스 수량 (박스)</code>, <code>투입 공수 (인시)</code>.</li>
 <li>상위 7대 거래처 외 나머지는 <code>'기타 바이어'</code>로 자동 롤업(Roll-up).</li>
 <li><strong>호버 툴팁</strong>: 바이어명, 수출국가/권역, 점유율(%), 총 스티커 작업량, 출하 박스수, 주요 출하품목 Top 2.</li>
 <li><strong>수출 대상국 및 권역별 작업량 (수평 막대 차트)</strong>:</li>
@@ -1038,7 +1038,7 @@
 <h4 id="3-4-kpi">3) 4대 예측 KPI 카드</h4>
 <ol>
 <li><strong>총 예정 작업량</strong>: 입력된 오더의 총 스티커 매수 및 출하 박스수 (평균 입량 표시).</li>
-<li><strong>필요 총 공수 (Man-Hours)</strong>: 과거 실제 작업일지에서 집계된 <strong>해당 품목의 누적 벤치마크 속도(매/hr)</strong>를 적용해 산출한 순수 필요 인·시.<br />
+<li><strong>필요 총 공수 (Man-Hours)</strong>: 과거 실제 작업일지에서 집계된 <strong>해당 품목의 누적 벤치마크 속도(매/hr)</strong>를 적용해 산출한 순수 필요 인시.<br />
    <div class="math-display-card">
   <span class="math-term">필요 공수</span>
   <span class="math-equal">=</span>
@@ -1179,7 +1179,7 @@
 <li><strong>바이어 마스터(36개사)</strong>: 바이어 ID, 바이어명, 수출국, 권역, 거래처 유형, 누적 오더수, 스티커 매수, 해외 라벨링 규정 메모 열람, 신규 바이어 등록 폼 및 <code>dim_buyer.csv</code> 다운로드.</li>
 </ul>
 <h4 id="4-54-item-lineage-consolidation-map">4) 🔀 서브탭 5.4: 품목 데이터 계보 및 통합 맵 (Item Lineage &amp; Consolidation Map)</h4>
-<p>현장 작업일지에서 수기 기입 편차(오타, 띄어쓰기, 영문 대소문자, 약어)로 분열되어 기록되던 원천 텍스트들이 표준 마스터 품목으로 어떻게 정규화·통합되었는지 시각적 계보를 추적하고 마스터 동기화를 지원합니다.</p>
+<p>현장 작업일지에서 수기 기입 편차(오타, 띄어쓰기, 영문 대소문자, 약어)로 분열되어 기록되던 원천 텍스트들이 표준 마스터 품목으로 어떻게 정규화 및 통합되었는지 시각적 계보를 추적하고 마스터 동기화를 지원합니다.</p>
 <ul>
 <li><strong>4대 Lineage KPI 카드</strong>:<br />
   1. <code>통합된 수기 변형 표기 (187종)</code>: 354개 별칭 사전 및 규칙 엔진 연동<br />

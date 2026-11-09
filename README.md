@@ -1,7 +1,7 @@
 # 📦 글로벌 K-Food 수출 포장 & 라벨링 작업 분석 플랫폼
 ### Global K-Food Export Packaging & Labeling Operations Analytics Platform
 
-> **비용 0원(Zero-Cost) 모던 데이터 스택 기반의 수출 식품 라벨 부착 실적 디지털화, 4단계 지능형 품목 정규화, 데이터 무결성 감사, 생산성·채산성 시뮬레이션 및 월간 자동 결산 리포팅 시스템**
+> **비용 0원(Zero-Cost) 모던 데이터 스택 기반의 수출 식품 라벨 부착 실적 디지털화, 4단계 지능형 품목 정규화, 데이터 무결성 감사, 생산성 및 채산성 시뮬레이션 및 월간 자동 결산 리포팅 시스템**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://export-packaging-showcase.streamlit.app/)

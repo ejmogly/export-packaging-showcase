@@ -53,6 +53,76 @@ class GoldAnalyticsPipeline:
         return mart
 
     @staticmethod
+    def build_monthly_summary_mart(
+        silver_df: pd.DataFrame,
+        daily_mart: pd.DataFrame = None,
+        save_to_disk: bool = False
+    ) -> pd.DataFrame:
+        """
+        Grain: 1 Row per work_month
+        Pre-aggregates and optionally persists the Gold Monthly Summary Mart table
+        (excluding auxiliary outer-box/consumable items from unique SKU counts).
+        """
+        if silver_df.empty:
+            return pd.DataFrame(columns=[
+                "work_month", "총스티커수량", "총작업수량_박스", "순수출하박스",
+                "총투입공수", "시간당부착량", "인당일평균부착량", "가동일수",
+                "취급품목수", "작업오더건수"
+            ])
+
+        if daily_mart is None or daily_mart.empty:
+            daily_mart = GoldAnalyticsPipeline.build_daily_productivity_mart(silver_df)
+        monthly_daily = daily_mart.groupby("work_month").agg(
+            총투입공수=("total_man_hours", "sum"),
+            가동일수=("work_date", "nunique"),
+            투입인원_합계=("effective_worker_count", "sum")
+        ).reset_index()
+
+        # Exclude auxiliary rows (box, 나무포크, 나무숟가락, 나무나이프) when counting distinct product SKUs
+        if "is_auxiliary_item" in silver_df.columns:
+            product_only_df = silver_df[~silver_df["is_auxiliary_item"]]
+        else:
+            aux_names = {"box", "box (외포장 라벨링)", "나무포크", "나무숟가락", "나무나이프", "트레이(자몽)"}
+            product_only_df = silver_df[~silver_df["normalized_item_name"].astype(str).str.lower().isin(aux_names)]
+
+        sku_by_month = product_only_df.groupby("work_month")["normalized_item_name"].nunique().to_dict()
+
+        shipped_col = "shipped_box_qty" if "shipped_box_qty" in silver_df.columns else "work_qty"
+        monthly_silver = silver_df.groupby("work_month").agg(
+            총스티커수량=("sticker_qty", "sum"),
+            총작업수량_박스=("work_qty", "sum"),
+            순수출하박스=(shipped_col, "sum"),
+            작업오더건수=("line_no", "count")
+        ).reset_index()
+
+        monthly_silver["취급품목수"] = monthly_silver["work_month"].map(sku_by_month).fillna(0).astype(int)
+
+        monthly_summary = monthly_silver.merge(monthly_daily, on="work_month", how="left")
+        monthly_summary["총투입공수"] = monthly_summary["총투입공수"].round(1)
+        monthly_summary["시간당부착량"] = (
+            monthly_summary["총스티커수량"] / monthly_summary["총투입공수"].replace(0, 1)
+        ).round(1)
+        monthly_summary["인당일평균부착량"] = (
+            monthly_summary["총스티커수량"] / monthly_summary["투입인원_합계"].replace(0, 1)
+        ).round(0)
+
+        monthly_summary = monthly_summary[[
+            "work_month", "총스티커수량", "총작업수량_박스", "순수출하박스",
+            "총투입공수", "시간당부착량", "인당일평균부착량", "가동일수",
+            "취급품목수", "작업오더건수"
+        ]].sort_values("work_month", ascending=True).reset_index(drop=True)
+
+        if save_to_disk:
+            try:
+                from src.ingestion.loader import get_data_filepath
+                mart_path = get_data_filepath("gold_monthly_summary_mart.csv")
+                monthly_summary.to_csv(mart_path, index=False, encoding="utf-8-sig")
+            except Exception:
+                pass
+
+        return monthly_summary
+
+    @staticmethod
     def build_item_difficulty_mart(silver_df: pd.DataFrame) -> pd.DataFrame:
         """
         Grain: 1 Row per normalized_item_name

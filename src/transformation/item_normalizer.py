@@ -128,7 +128,7 @@ class ItemNormalizer:
         """Removes spaces, special characters, and converts to lowercase for lookup."""
         if not text:
             return ""
-        cleaned = re.sub(r'[\s\(\)\[\]\-_/·,]+', '', str(text)).lower()
+        cleaned = re.sub(r'[\s\(\)\[\]\-_/,]+', '', str(text)).lower()
         return cleaned
 
     @staticmethod
@@ -140,7 +140,7 @@ class ItemNormalizer:
         """
         if not text:
             return ""
-        tokens = [t for t in re.split(r'[\s\(\)\[\]\-_/·,]+', str(text).lower()) if t]
+        tokens = [t for t in re.split(r'[\s\(\)\[\]\-_/,]+', str(text).lower()) if t]
         return " ".join(sorted(tokens))
 
     @staticmethod
@@ -159,7 +159,7 @@ class ItemNormalizer:
         # Remove standard weights/volumes/counts: 120g, 500ml, 12p, 5입, 10개, 4번들
         s = re.sub(r'\b\d+(\.\d+)?\s*(g|kg|ml|l|p|입|개|봉|캔|병|박스|번들|box)\b', '', s, flags=re.IGNORECASE)
         # Clean hanging separators
-        s = re.sub(r'[\-_/·,]+', ' ', s)
+        s = re.sub(r'[\-_/,]+', ' ', s)
         return s.strip()
 
     def _find_best_variant_by_pack_qty(self, candidates: List[Dict[str, Any]], pack_qty: int) -> Optional[Dict[str, Any]]:
@@ -181,7 +181,7 @@ class ItemNormalizer:
         Matches multi-token inputs against concatenated master items where all tokens are present
         and total character count matches (e.g. '콘스프 꼬북칩' -> '꼬북칩콘스프').
         """
-        tokens = [t for t in re.split(r'[\s\(\)\[\]\-_/·,]+', str(raw_text).lower()) if t]
+        tokens = [t for t in re.split(r'[\s\(\)\[\]\-_/,]+', str(raw_text).lower()) if t]
         if len(tokens) < 2:
             return None
         tot_len = sum(len(t) for t in tokens)
