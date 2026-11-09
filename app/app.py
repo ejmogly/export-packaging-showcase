@@ -4324,6 +4324,23 @@ with tab5:
                 key="btn_download_csv_clean_dim"
             )
 
+        apps_script_path = os.path.join(PROJECT_ROOT, "scripts", "google_apps_script_automation.js")
+        webapp_html_path = os.path.join(PROJECT_ROOT, "scripts", "apps_script_webapp", "Index.html")
+        if os.path.exists(apps_script_path):
+            with st.expander("🛠️ 구글 스프레드시트 자동화 & 실무자 전용 토스형 웹앱 코드", expanded=False):
+                st.caption(
+                    "구글 스프레드시트 메뉴 **[확장 프로그램] ➔ [Apps Script]**에서 아래 2개 파일을 등록하고 **[배포] ➔ [새 배포] ➔ [웹 앱]**을 실행하면, "
+                    "임원 대시보드와 분리된 **실무자 전용 모바일 웹앱 링크**가 발급됩니다."
+                )
+                tab_code_gs, tab_index_html = st.tabs(["📄 Code.gs (백엔드 스크립트)", "📱 Index.html (토스형 모바일 UI)"])
+                with tab_code_gs:
+                    with open(apps_script_path, "r", encoding="utf-8") as gf:
+                        st.code(gf.read(), language="javascript")
+                with tab_index_html:
+                    if os.path.exists(webapp_html_path):
+                        with open(webapp_html_path, "r", encoding="utf-8") as hf:
+                            st.code(hf.read(), language="html")
+
 
 # ---------------------------------------------------------
 # TAB 6: DATA LINEAGE & ARCHITECTURE MAP (데이터 계보 & 아키텍처)

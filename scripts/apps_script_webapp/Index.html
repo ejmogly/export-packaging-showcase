@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>우성월드 스티커 작업일지</title>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      background-color: #F2F4F6;
+      color: #191F28;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+    }
+    .app-container {
+      width: 100%;
+      max-width: 480px;
+      min-height: 100vh;
+      background-color: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.06);
+    }
+    .app-header {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #F2F4F6;
+      background: #FFFFFF;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .app-header h1 {
+      font-size: 17px;
+      font-weight: 700;
+      color: #191F28;
+    }
+    .badge-role {
+      font-size: 11px;
+      font-weight: 600;
+      color: #3182F6;
+      background: #E8F3FF;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .content-area {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .step-title-area {
+      margin-bottom: 20px;
+    }
+    .step-tag {
+      font-size: 12px;
+      font-weight: 700;
+      color: #3182F6;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .step-title {
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.35;
+      color: #191F28;
+    }
+    .toss-card {
+      background: #FFFFFF;
+      border: 1px solid #E5E8EB;
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 14px;
+    }
+    .card-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #8B95A1;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .date-input {
+      width: 100%;
+      font-size: 18px;
+      font-weight: 700;
+      color: #191F28;
+      border: none;
+      background: transparent;
+      outline: none;
+      cursor: pointer;
+    }
+    .counter-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .counter-value {
+      font-size: 32px;
+      font-weight: 800;
+      color: #191F28;
+    }
+    .counter-unit {
+      font-size: 16px;
+      font-weight: 600;
+      color: #8B95A1;
+      margin-left: 2px;
+    }
+    .counter-btn-group {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: #F2F4F6;
+      border: none;
+      font-size: 22px;
+      font-weight: 700;
+      color: #4E5968;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-circle:active {
+      background: #E5E8EB;
+    }
+    .hours-tabs {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .tab-pill {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      border-radius: 10px;
+      background: #F2F4F6;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      color: #4E5968;
+      cursor: pointer;
+    }
+    .tab-pill.active {
+      background: #E8F3FF;
+      color: #3182F6;
+      font-weight: 700;
+    }
+    .search-input-wrap {
+      position: relative;
+    }
+    .search-input {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid #E5E8EB;
+      background: #F9FAFB;
+      font-size: 15px;
+      font-weight: 700;
+      color: #191F28;
+      outline: none;
+    }
+    .search-input:focus {
+      border-color: #3182F6;
+      background: #FFFFFF;
+    }
+    .chip-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .toss-chip {
+      background: #F2F4F6;
+      color: #4E5968;
+      border-radius: 10px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+    }
+    .toss-chip:active {
+      background: #E5E8EB;
+    }
+    .toss-chip.selected {
+      background: #3182F6;
+      color: #FFFFFF;
+    }
+    .meta-box {
+      background: #F8FAFC;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #64748B;
+    }
+    .meta-box strong {
+      color: #1E293B;
+      font-weight: 700;
+    }
+    .number-input-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .number-input {
+      flex: 1;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid #E5E8EB;
+      background: #F9FAFB;
+      font-size: 20px;
+      font-weight: 800;
+      color: #191F28;
+      outline: none;
+    }
+    .number-input:focus {
+      border-color: #3182F6;
+      background: #FFFFFF;
+    }
+    .switch-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .switch-btn {
+      padding: 12px;
+      border-radius: 12px;
+      background: #F9FAFB;
+      border: 1px solid #E5E8EB;
+      color: #4E5968;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .switch-btn.active {
+      background: #E8F3FF;
+      border-color: #3182F6;
+      color: #3182F6;
+      font-weight: 700;
+    }
+    .result-banner {
+      background: #191F28;
+      color: #FFFFFF;
+      border-radius: 14px;
+      padding: 14px 18px;
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .result-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #B0B8C1;
+    }
+    .result-num {
+      font-size: 22px;
+      font-weight: 900;
+      color: #4EA3F8;
+    }
+    .btn-submit {
+      width: 100%;
+      height: 56px;
+      border-radius: 16px;
+      background: #3182F6;
+      color: #FFFFFF;
+      border: none;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 16px rgba(49, 130, 246, 0.25);
+      transition: background 0.15s, transform 0.1s;
+      margin-top: 10px;
+    }
+    .btn-submit:active {
+      background: #1B64DA;
+      transform: scale(0.98);
+    }
+    .btn-secondary {
+      width: 100%;
+      height: 50px;
+      border-radius: 14px;
+      background: #F2F4F6;
+      color: #4E5968;
+      border: none;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .summary-card {
+      background: linear-gradient(135deg, #3182F6 0%, #1B64DA 100%);
+      color: #FFFFFF;
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .summary-item-label {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+    .summary-item-val {
+      font-size: 24px;
+      font-weight: 900;
+      margin-top: 2px;
+    }
+    .cart-item-card {
+      background: #FFFFFF;
+      border: 1px solid #E5E8EB;
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .cart-item-info h4 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #191F28;
+    }
+    .cart-item-info p {
+      font-size: 12px;
+      color: #8B95A1;
+      margin-top: 3px;
+    }
+    .cart-item-qty {
+      text-align: right;
+    }
+    .cart-item-boxes {
+      font-size: 15px;
+      font-weight: 800;
+      color: #191F28;
+    }
+    .cart-item-stickers {
+      font-size: 13px;
+      font-weight: 700;
+      color: #3182F6;
+    }
+    .btn-del {
+      background: none;
+      border: none;
+      color: #B0B8C1;
+      font-size: 16px;
+      cursor: pointer;
+      margin-left: 10px;
+      padding: 4px;
+    }
+    .success-box {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .success-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: #E8F3FF;
+      color: #3182F6;
+      font-size: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .success-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: #191F28;
+      margin-bottom: 8px;
+    }
+    .success-desc {
+      font-size: 14px;
+      color: #8B95A1;
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+    .search-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #FFFFFF;
+      border: 1px solid #E5E8EB;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+      margin-top: 4px;
+    }
+    .search-dropdown-item {
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #191F28;
+      cursor: pointer;
+      border-bottom: 1px solid #F2F4F6;
+      display: flex;
+      justify-content: space-between;
+    }
+    .search-dropdown-item:active, .search-dropdown-item:hover {
+      background: #F8FAFC;
+      color: #3182F6;
+    }
+    .loading-spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #FFFFFF;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Top Nav -->
+    <header class="app-header">
+      <h1>우성월드 스티커 일지</h1>
+      <span class="badge-role">현장 관리자용</span>
+    </header>
+
+    <!-- CONTENT: STEP 1 (기본 근무 정보) -->
+    <main id="step-1" class="content-area">
+      <div class="step-title-area">
+        <span class="step-tag">Step 1</span>
+        <h2 class="step-title">오늘 근무 기본 정보를<br>입력해 주세요</h2>
+      </div>
+
+      <div class="toss-card">
+        <label class="card-label">작업 일자</label>
+        <input id="inp-date" type="date" class="date-input">
+      </div>
+
+      <div class="toss-card">
+        <label class="card-label">작업 인원수</label>
+        <div class="counter-row">
+          <div>
+            <span id="disp-workers" class="counter-value">11</span>
+            <span class="counter-unit">명</span>
+          </div>
+          <div class="counter-btn-group">
+            <button onclick="changeWorkers(-1)" class="btn-circle">-</button>
+            <button onclick="changeWorkers(1)" class="btn-circle">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="toss-card">
+        <label class="card-label">기본 근무 시간</label>
+        <div class="counter-row">
+          <div>
+            <span id="disp-hours" class="counter-value" style="font-size:26px;">8.0</span>
+            <span class="counter-unit">시간</span>
+          </div>
+        </div>
+        <div class="hours-tabs">
+          <button id="tab-h8" onclick="setHours(8.0)" class="tab-pill active">기본(8h)</button>
+          <button id="tab-h9" onclick="setHours(9.0)" class="tab-pill">연장(9h)</button>
+          <button id="tab-h10" onclick="setHours(10.0)" class="tab-pill">특근(10h)</button>
+        </div>
+      </div>
+
+      <button onclick="goToStep(2)" class="btn-submit">
+        <span>품목 입력 시작하기</span>
+        <span>➔</span>
+      </button>
+    </main>
+
+    <!-- CONTENT: STEP 2 (품목 검색 및 담기) -->
+    <main id="step-2" class="content-area hidden">
+      <div class="step-title-area">
+        <span class="step-tag">Step 2</span>
+        <h2 class="step-title">작업한 품목을<br>담아주세요</h2>
+      </div>
+
+      <!-- Item Search -->
+      <div class="toss-card">
+        <label class="card-label">품목명 (마스터 자동완성 검색)</label>
+        <div class="search-input-wrap">
+          <input id="inp-item-search" type="text" placeholder="품목명을 입력하세요 (예: 꼬북, 초코)" class="search-input" autocomplete="off" oninput="onSearchInput(this.value)">
+          <div id="search-dropdown" class="search-dropdown"></div>
+        </div>
+
+        <div class="chip-container">
+          <button onclick="quickPick('꼬북칩콘스프', '80', 12, '오리온', '판아시아 오스트리아')" class="toss-chip">꼬북칩콘스프</button>
+          <button onclick="quickPick('초코파이', '468', 8, '오리온', '판아시아 오스트리아')" class="toss-chip">초코파이</button>
+          <button onclick="quickPick('에이스바스크치즈', '364', 10, '해태', 'H73')" class="toss-chip">에이스바스크치즈</button>
+          <button onclick="quickPick('캐나다용화이트빼빼로', '32', 40, '롯데', '5141(롯데 캐나다)')" class="toss-chip">캐나다빼빼로</button>
+          <button onclick="quickPick('box', '', 0, '외포장', '판아시아 오스트리아')" class="toss-chip" style="background:#FEF3C7; color:#92400E; font-weight:700;">📦 외박스(box)</button>
+        </div>
+
+        <div class="meta-box">
+          <div>중량: <strong id="disp-vol">80g</strong></div>
+          <div>입량: <strong id="disp-pack">12개입</strong></div>
+          <div>제조사: <strong id="disp-mfg">오리온</strong></div>
+        </div>
+      </div>
+
+      <!-- Box Qty & Multipliers -->
+      <div class="toss-card">
+        <label class="card-label">작업 수량 (박스)</label>
+        <div class="number-input-row">
+          <input id="inp-box-qty" type="number" inputmode="numeric" value="150" class="number-input" oninput="calculateStickers()">
+          <span style="font-weight:700; color:#4E5968;">박스</span>
+        </div>
+
+        <div class="switch-grid">
+          <button id="btn-sw-tray" onclick="toggleSwitch('tray')" class="switch-btn">🗂️ 4개입 트레이 (x4)</button>
+          <button id="btn-sw-double" onclick="toggleSwitch('double')" class="switch-btn">🏷️ 2장 부착 (x2)</button>
+        </div>
+
+        <div class="result-banner">
+          <span class="result-label">스티커 수량 자동 계산</span>
+          <span id="disp-calc-stickers" class="result-num">1,800 매</span>
+        </div>
+      </div>
+
+      <!-- Buyer / Remark -->
+      <div class="toss-card">
+        <label class="card-label">비고 / 바이어 (거래처 선택)</label>
+        <input id="inp-buyer" type="text" value="판아시아 오스트리아" class="search-input" style="font-size:14px; padding:10px 14px;">
+        <div class="chip-container">
+          <button onclick="setBuyer('판아시아 오스트리아')" class="toss-chip">판아시아</button>
+          <button onclick="setBuyer('D01 (해태제과)')" class="toss-chip">해태제과(D01)</button>
+          <button onclick="setBuyer('5141(롯데 캐나다)')" class="toss-chip">롯데 캐나다</button>
+          <button onclick="setBuyer('H73')" class="toss-chip">H73</button>
+          <button onclick="setBuyer('거복 33차')" class="toss-chip">거복</button>
+        </div>
+      </div>
+
+      <button onclick="addCurrentItem()" class="btn-submit" style="background:#191F28;">
+        <span>+ 오늘 작업 목록에 담기</span>
+      </button>
+      <button onclick="goToStep(3)" class="btn-secondary">
+        목록 및 요약 확인하기 (<span id="btn-cart-count">0</span>건)
+      </button>
+    </main>
+
+    <!-- CONTENT: STEP 3 (장바구니 확인 & 시트 전송) -->
+    <main id="step-3" class="content-area hidden">
+      <div class="step-title-area">
+        <span class="step-tag">Step 3</span>
+        <h2 class="step-title">오늘 작성된 목록을<br>확인해 주세요</h2>
+      </div>
+
+      <!-- Summary Pill Banner -->
+      <div class="summary-card">
+        <div style="font-size:13px; opacity:0.9;" id="summary-header">2026-11-09 (11명)</div>
+        <div class="summary-grid">
+          <div>
+            <div class="summary-item-label">총 출하 박스</div>
+            <div id="sum-boxes" class="summary-item-val">0 박스</div>
+          </div>
+          <div>
+            <div class="summary-item-label">총 스티커 소요</div>
+            <div id="sum-stickers" class="summary-item-val" style="color:#FEF08A;">0 매</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Item Cards Container -->
+      <div id="cart-container"></div>
+
+      <button onclick="goToStep(2)" class="btn-secondary" style="margin-bottom:12px;">
+        + 품목 추가하기
+      </button>
+
+      <button id="btn-final-send" onclick="submitWorkLog()" class="btn-submit">
+        <span>🚀 구글 시트로 최종 전송</span>
+      </button>
+    </main>
+
+    <!-- CONTENT: STEP 4 (완료) -->
+    <main id="step-4" class="content-area hidden">
+      <div class="success-box">
+        <div class="success-icon">✓</div>
+        <h2 class="success-title">작업일지 등록 완료!</h2>
+        <p class="success-desc">
+          구글 스프레드시트 [스티커작업일지]와 [sticker_work_log_source]에<br>
+          오타 및 수식 오류 없이 안전하게 저장되었습니다.
+        </p>
+
+        <div class="toss-card" style="text-align:left; font-size:13px; line-height:2;">
+          <div style="display:flex; justify-content:space-between; color:#64748B;">
+            <span>작업일자</span>
+            <strong id="done-date" style="color:#191F28;">2026-11-09</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; color:#64748B;">
+            <span>근무인원</span>
+            <strong id="done-workers" style="color:#191F28;">11명 (88.0인시)</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; color:#64748B;">
+            <span>총 출하 박스</span>
+            <strong id="done-boxes" style="color:#191F28;">1,489 박스</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; color:#64748B; border-top:1px solid #F2F4F6; padding-top:6px; margin-top:6px;">
+            <span style="font-weight:700; color:#191F28;">총 스티커 매수</span>
+            <strong id="done-stickers" style="font-size:16px; color:#3182F6;">26,000 매</strong>
+          </div>
+        </div>
+
+        <button onclick="resetAll()" class="btn-submit" style="margin-top:20px;">
+          다음 작업일지 작성하기
+        </button>
+      </div>
+    </main>
+
+  </div>
+
+  <script>
+    // State
+    var workerCount = 11;
+    var workHours = 8.0;
+    var isTray = false;
+    var isDouble = false;
+    var currentItem = { name: '꼬북칩콘스프', volume: '80', packQty: 12, mfg: '오리온' };
+    var cartItems = [];
+    var MASTER_ITEMS = [];
+
+    // Init
+    window.addEventListener('DOMContentLoaded', function() {
+      var today = new Date();
+      var yyyy = today.getFullYear();
+      var mm = ('0' + (today.getMonth() + 1)).slice(-2);
+      var dd = ('0' + today.getDate()).slice(-2);
+      document.getElementById('inp-date').value = yyyy + '-' + mm + '-' + dd;
+
+      // Load Master Items via google.script.run
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(items) {
+            MASTER_ITEMS = items || [];
+          })
+          .getItemMasterList();
+      } else {
+        // Mock fallback for browser preview
+        MASTER_ITEMS = [
+          { name: '꼬북칩콘스프', volume: '80', packQty: 12, mfg: '오리온' },
+          { name: '초코파이', volume: '468', packQty: 8, mfg: '오리온' },
+          { name: '화이트빼빼로', volume: '32', packQty: 40, mfg: '롯데' },
+          { name: '에이스바스크치즈', volume: '364', packQty: 10, mfg: '해태' },
+          { name: '구운고구마', volume: '135', packQty: 10, mfg: '해태' },
+          { name: 'box', volume: '', packQty: 0, mfg: '외포장' }
+        ];
+      }
+      quickPick('꼬북칩콘스프', '80', 12, '오리온', '판아시아 오스트리아');
+    });
+
+    function goToStep(n) {
+      document.getElementById('step-1').classList.add('hidden');
+      document.getElementById('step-2').classList.add('hidden');
+      document.getElementById('step-3').classList.add('hidden');
+      document.getElementById('step-4').classList.add('hidden');
+
+      document.getElementById('step-' + n).classList.remove('hidden');
+
+      if (n === 3) {
+        renderCart();
+      }
+    }
+
+    function changeWorkers(delta) {
+      workerCount = Math.max(1, workerCount + delta);
+      document.getElementById('disp-workers').innerText = workerCount;
+    }
+
+    function setHours(h) {
+      workHours = h;
+      document.getElementById('disp-hours').innerText = h.toFixed(1);
+      document.getElementById('tab-h8').className = h === 8.0 ? 'tab-pill active' : 'tab-pill';
+      document.getElementById('tab-h9').className = h === 9.0 ? 'tab-pill active' : 'tab-pill';
+      document.getElementById('tab-h10').className = h === 10.0 ? 'tab-pill active' : 'tab-pill';
+    }
+
+    function onSearchInput(query) {
+      var dropdown = document.getElementById('search-dropdown');
+      var q = query.trim().toLowerCase();
+      if (!q || MASTER_ITEMS.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      var matches = MASTER_ITEMS.filter(function(it) {
+        return it.name.toLowerCase().indexOf(q) !== -1;
+      }).slice(0, 8);
+
+      if (matches.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      dropdown.innerHTML = '';
+      matches.forEach(function(it) {
+        var row = document.createElement('div');
+        row.className = 'search-dropdown-item';
+        row.innerHTML = '<span>' + it.name + '</span><span style="font-size:12px; color:#8B95A1;">' + (it.packQty ? it.packQty + '입' : '') + '</span>';
+        row.onclick = function() {
+          quickPick(it.name, it.volume, it.packQty, it.mfg);
+          dropdown.style.display = 'none';
+        };
+        dropdown.appendChild(row);
+      });
+      dropdown.style.display = 'block';
+    }
+
+    function quickPick(name, vol, pack, mfg, defaultBuyer) {
+      currentItem.name = name;
+      currentItem.volume = vol;
+      currentItem.packQty = parseInt(pack) || 0;
+      currentItem.mfg = mfg || '';
+
+      document.getElementById('inp-item-search').value = name;
+      document.getElementById('disp-vol').innerText = vol ? (vol + 'g') : '-';
+      document.getElementById('disp-pack').innerText = pack ? (pack + '개입') : '-';
+      document.getElementById('disp-mfg').innerText = mfg || '-';
+
+      if (defaultBuyer) {
+        document.getElementById('inp-buyer').value = defaultBuyer;
+      }
+      document.getElementById('search-dropdown').style.display = 'none';
+      calculateStickers();
+    }
+
+    function setBuyer(name) {
+      document.getElementById('inp-buyer').value = name;
+    }
+
+    function toggleSwitch(type) {
+      if (type === 'tray') {
+        isTray = !isTray;
+        document.getElementById('btn-sw-tray').className = isTray ? 'switch-btn active' : 'switch-btn';
+      } else if (type === 'double') {
+        isDouble = !isDouble;
+        document.getElementById('btn-sw-double').className = isDouble ? 'switch-btn active' : 'switch-btn';
+      }
+      calculateStickers();
+    }
+
+    function calculateStickers() {
+      var boxQty = parseInt(document.getElementById('inp-box-qty').value) || 0;
+      var mult = 1;
+      if (isTray) mult *= 4;
+      if (isDouble) mult *= 2;
+
+      var stickers = 0;
+      if (currentItem.name.toLowerCase() === 'box') {
+        stickers = boxQty; // outer box 1:1
+      } else {
+        stickers = boxQty * (currentItem.packQty || 12) * mult;
+      }
+
+      document.getElementById('disp-calc-stickers').innerText = stickers.toLocaleString() + ' 매';
+      return stickers;
+    }
+
+    function addCurrentItem() {
+      var boxQty = parseInt(document.getElementById('inp-box-qty').value) || 0;
+      if (boxQty <= 0) {
+        alert('작업 박스 수량을 1 이상 입력해 주세요.');
+        return;
+      }
+      var stickers = calculateStickers();
+      var buyer = document.getElementById('inp-buyer').value.trim();
+
+      var fieldNotes = [];
+      if (isTray) fieldNotes.push('트레이 4개입');
+      if (isDouble) fieldNotes.push('2장 부착');
+
+      cartItems.push({
+        itemName: currentItem.name,
+        volume: currentItem.volume,
+        packQty: currentItem.packQty,
+        workQty: boxQty,
+        stickerQty: stickers,
+        remark: buyer,
+        fieldNote: fieldNotes.join(', ')
+      });
+
+      document.getElementById('btn-cart-count').innerText = cartItems.length;
+      alert(currentItem.name + ' ' + boxQty + '박스가 목록에 추가되었습니다.');
+
+      // Reset switches for next item
+      isTray = false;
+      isDouble = false;
+      document.getElementById('btn-sw-tray').className = 'switch-btn';
+      document.getElementById('btn-sw-double').className = 'switch-btn';
+      calculateStickers();
+    }
+
+    function renderCart() {
+      var container = document.getElementById('cart-container');
+      container.innerHTML = '';
+
+      var totalBoxes = 0;
+      var totalStickers = 0;
+
+      if (cartItems.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:30px; color:#8B95A1;">담긴 작업 품목이 없습니다. [품목 추가하기]를 눌러주세요.</div>';
+      }
+
+      cartItems.forEach(function(item, idx) {
+        totalBoxes += item.workQty;
+        totalStickers += item.stickerQty;
+
+        var card = document.createElement('div');
+        card.className = 'cart-item-card';
+        card.innerHTML = 
+          '<div class="cart-item-info">' +
+            '<h4>' + item.itemName + '</h4>' +
+            '<p>' + (item.remark ? item.remark + ' | ' : '') + item.volume + 'g x ' + item.packQty + '입' + (item.fieldNote ? ' (' + item.fieldNote + ')' : '') + '</p>' +
+          '</div>' +
+          '<div style="display:flex; align-items:center;">' +
+            '<div class="cart-item-qty">' +
+              '<div class="cart-item-boxes">' + item.workQty.toLocaleString() + '박스</div>' +
+              '<div class="cart-item-stickers">' + item.stickerQty.toLocaleString() + '매</div>' +
+            '</div>' +
+            '<button onclick="removeCartItem(' + idx + ')" class="btn-del">✕</button>' +
+          '</div>';
+        container.appendChild(card);
+      });
+
+      document.getElementById('summary-header').innerText = document.getElementById('inp-date').value + ' (' + workerCount + '명 / ' + workHours.toFixed(1) + 'h)';
+      document.getElementById('sum-boxes').innerText = totalBoxes.toLocaleString() + ' 박스';
+      document.getElementById('sum-stickers').innerText = totalStickers.toLocaleString() + ' 매';
+    }
+
+    function removeCartItem(idx) {
+      cartItems.splice(idx, 1);
+      document.getElementById('btn-cart-count').innerText = cartItems.length;
+      renderCart();
+    }
+
+    function submitWorkLog() {
+      if (cartItems.length === 0) {
+        alert('전송할 품목이 없습니다. 최소 1개 이상 품목을 담아주세요.');
+        return;
+      }
+
+      var btn = document.getElementById('btn-final-send');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner"></span> <span>구글 시트에 저장 중...</span>';
+
+      var payload = {
+        workDate: document.getElementById('inp-date').value,
+        workerCount: workerCount,
+        workHours: workHours,
+        items: cartItems
+      };
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(res) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>🚀 구글 시트로 최종 전송</span>';
+            if (res && res.success) {
+              onSuccessSubmitted(payload, res);
+            } else {
+              alert('저장 실패: ' + (res ? res.message : '알 수 없는 오류'));
+            }
+          })
+          .withFailureHandler(function(err) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>🚀 구글 시트로 최종 전송</span>';
+            alert('통신 오류 발생: ' + err.toString());
+          })
+          .saveDailyWorkLog(payload);
+      } else {
+        // Mock fallback for browser testing
+        setTimeout(function() {
+          btn.disabled = false;
+          btn.innerHTML = '<span>🚀 구글 시트로 최종 전송</span>';
+          var totalBoxes = cartItems.reduce(function(a, b) { return a + b.workQty; }, 0);
+          var totalStickers = cartItems.reduce(function(a, b) { return a + b.stickerQty; }, 0);
+          onSuccessSubmitted(payload, { totalBoxes: totalBoxes, totalStickers: totalStickers });
+        }, 800);
+      }
+    }
+
+    function onSuccessSubmitted(payload, res) {
+      document.getElementById('done-date').innerText = payload.workDate;
+      document.getElementById('done-workers').innerText = payload.workerCount + '명 (' + (payload.workerCount * payload.workHours).toFixed(1) + '인시)';
+      document.getElementById('done-boxes').innerText = (res.totalBoxes || 0).toLocaleString() + ' 박스';
+      document.getElementById('done-stickers').innerText = (res.totalStickers || 0).toLocaleString() + ' 매';
+
+      goToStep(4);
+    }
+
+    function resetAll() {
+      cartItems = [];
+      document.getElementById('btn-cart-count').innerText = 0;
+      goToStep(1);
+    }
+  </script>
+</body>
+</html>
