@@ -18,12 +18,16 @@ if PROJECT_ROOT not in sys.path:
 import streamlit.components.v1 as components
 import importlib
 import src.ingestion.loader
+import src.quality.validator
+import src.transformation.item_normalizer
 import src.transformation.silver_pipeline
 import src.analytics.gold_pipeline
 import src.analytics.lineage_visualizer
 
 # Force reload for long-running dev servers
 importlib.reload(src.ingestion.loader)
+importlib.reload(src.quality.validator)
+importlib.reload(src.transformation.item_normalizer)
 importlib.reload(src.transformation.silver_pipeline)
 importlib.reload(src.analytics.gold_pipeline)
 importlib.reload(src.analytics.lineage_visualizer)
@@ -404,7 +408,7 @@ def get_buyer_color(buyer_name: str, index: int = 0) -> str:
 # 2. DATA CACHING & PIPELINE EXECUTION
 # =========================================================
 @st.cache_data(ttl=600)
-def get_processed_data(cache_bust_token: str = "v_20260923_rebuilt_ground_truth_master"):
+def get_processed_data(cache_bust_token: str = "v_20261109_present_with_data_v3"):
     """Runs the Medallion transformation and caches results."""
     silver_df, quality_report, source_status = build_silver_layer()
     daily_mart = GoldAnalyticsPipeline.build_daily_productivity_mart(silver_df)
@@ -417,9 +421,9 @@ def get_processed_data(cache_bust_token: str = "v_20260923_rebuilt_ground_truth_
 # Load Data
 try:
     silver_df, quality_report, source_status, daily_mart, item_mart, buyer_mart, cat_mart = get_processed_data()
-    if "export_country" not in silver_df.columns:
+    if "export_country" not in silver_df.columns or "is_auxiliary_item" not in silver_df.columns:
         st.cache_data.clear()
-        silver_df, quality_report, source_status, daily_mart, item_mart, buyer_mart, cat_mart = get_processed_data()
+        silver_df, quality_report, source_status, daily_mart, item_mart, buyer_mart, cat_mart = get_processed_data("v_20261109_present_with_data_v3_recache")
 except Exception as e:
     st.error(f"데이터 파이프라인 로드 중 오류가 발생했습니다: {e}")
     st.stop()

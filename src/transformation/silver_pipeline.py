@@ -206,8 +206,18 @@ def build_silver_layer() -> tuple[pd.DataFrame, dict, str]:
     # 3. Data Quality Audit (recognizes tray x4, double sticker x2, outer box, consumables)
     silver_df, quality_summary = DataQualityValidator.audit_dataset(normalized_df)
 
+    # Defensive fallback: guarantee auxiliary flag even if an older validator module is loaded
+    if "is_auxiliary_item" not in silver_df.columns:
+        aux_names = {n.lower() for n in getattr(DataQualityValidator, "AUXILIARY_ITEMS", {
+            "box", "box (외포장 라벨링)", "나무포크", "나무숟가락", "나무나이프", "트레이(자몽)"
+        })}
+        raw_lower = silver_df["item_name"].astype(str).str.strip().str.lower()
+        norm_lower = silver_df.get("normalized_item_name", silver_df["item_name"]).astype(str).str.strip().str.lower()
+        cat1_col = silver_df.get("category_1", pd.Series([""] * len(silver_df), index=silver_df.index)).astype(str).str.strip()
+        silver_df["is_auxiliary_item"] = raw_lower.isin(aux_names) | norm_lower.isin(aux_names) | (cat1_col == "물류소모품")
+
     # Distinguish product cartons from outer box ('box') / consumable rows
-    silver_df["shipped_box_qty"] = silver_df["work_qty"].where(~silver_df["is_auxiliary_item"], 0)
+    silver_df["shipped_box_qty"] = silver_df["work_qty"].where(~silver_df["is_auxiliary_item"].astype(bool), 0)
 
     # 4. Buyer Normalization & Country/Region Enrichment
     silver_df["buyer_normalized"] = silver_df["remark"].apply(lambda r: normalize_buyer(r, buyer_overrides))
