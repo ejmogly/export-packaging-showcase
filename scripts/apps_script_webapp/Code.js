@@ -280,7 +280,7 @@ function saveDailyWorkLog(payload) {
 }
 
 /**
- * [기능 3] 미등록 신규 품목 자동 마스터 등록 헬퍼
+ * [기능 3] 미등록 신규 품목 자동 마스터 등록 헬퍼 (표준 ITM-XXXX 순차 채번)
  */
 function autoRegisterNewMasterItems_(ss, items) {
   try {
@@ -289,12 +289,26 @@ function autoRegisterNewMasterItems_(ss, items) {
 
     var lastRow = masterSheet.getLastRow();
     var existingMap = {};
+    var maxCodeNum = 0;
+
     if (lastRow >= 2) {
-      var names = masterSheet.getRange(2, 2, lastRow - 1, 1).getValues();
-      for (var i = 0; i < names.length; i++) {
-        var n = String(names[i][0] || '').trim().toLowerCase();
+      var masterData = masterSheet.getRange(2, 1, lastRow - 1, 2).getValues();
+      for (var i = 0; i < masterData.length; i++) {
+        var code = String(masterData[i][0] || '').trim();
+        var n = String(masterData[i][1] || '').trim().toLowerCase();
         if (n) existingMap[n] = true;
+
+        // ITM-0001 형식의 숫자 채번 탐색
+        var match = code.match(/ITM-(\d+)/i);
+        if (match) {
+          var num = parseInt(match[1], 10);
+          if (num > maxCodeNum) maxCodeNum = num;
+        }
       }
+    }
+
+    if (maxCodeNum === 0 && lastRow >= 2) {
+      maxCodeNum = lastRow - 1;
     }
 
     var newRows = [];
@@ -306,19 +320,31 @@ function autoRegisterNewMasterItems_(ss, items) {
 
       if (!existingMap[lower]) {
         existingMap[lower] = true; // 중복 추가 방지
-        var mfg = item.mfg || '기타';
+
+        maxCodeNum++;
+        var padNum = ('000' + maxCodeNum).slice(-4);
+        var itemCode = 'ITM-' + padNum;
+
+        var mfgName = item.mfg ? String(item.mfg).trim() : '기타제조사';
+        var mfgId = 'MFG-099';
+        if (/롯데/i.test(mfgName)) mfgId = 'MFG-001';
+        else if (/오리온/i.test(mfgName)) mfgId = 'MFG-002';
+        else if (/해태/i.test(mfgName)) mfgId = 'MFG-003';
+        else if (/크라운/i.test(mfgName)) mfgId = 'MFG-004';
+        else if (/농심/i.test(mfgName)) mfgId = 'MFG-005';
+
         var vol = item.volume ? String(item.volume).replace(/g$/i, '').trim() : '';
+        var volVal = parseFloat(vol) || '';
         var pack = parseInt(item.packQty) || 0;
-        var newCode = 'NEW_' + Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyMMdd_HHmmss') + '_' + (j + 1);
 
         newRows.push([
-          newCode,
+          itemCode,
           name,
-          mfg,
-          mfg,
-          '신규품목',
-          '스마트웹앱자동등록',
-          vol,
+          mfgId,
+          mfgName,
+          '과자',
+          '스낵',
+          volVal,
           'g',
           vol ? (vol + 'g') : '',
           pack
