@@ -895,6 +895,18 @@
       // User typed custom sticker quantity directly
     }
 
+    var ALIAS_RECOMMENDATIONS = {
+      '콘옥수수': '꼬깔콘군옥수수(대)',
+      '꼬칼콘': '꼬깔콘고소한맛',
+      '촉칩': '촉촉한초코칩',
+      '피카픽': '초코픽',
+      '오어슈거': '매일요구르트로어슈거',
+      '술불바베큐': '닭다리핫숯불바베큐',
+      '라이스쿠키': '제로아이스쿠키&크림바',
+      '신당동': '신당동신떡볶이',
+      '오리지날': '포카칩오리지널'
+    };
+
     function onSearchInput(query) {
       var dropdown = document.getElementById('search-dropdown');
       var q = query.trim();
@@ -906,7 +918,20 @@
       var qLower = q.toLowerCase();
       var matches = MASTER_ITEMS.filter(function(it) {
         return it.name.toLowerCase().indexOf(qLower) !== -1;
-      }).slice(0, 8);
+      });
+
+      // 오타/별칭 지능형 추천 (예: '콘옥수수' 검색 시 '꼬깔콘군옥수수(대)' 자동 추천)
+      for (var aliasKey in ALIAS_RECOMMENDATIONS) {
+        if (aliasKey.indexOf(qLower) !== -1 || qLower.indexOf(aliasKey) !== -1) {
+          var targetName = ALIAS_RECOMMENDATIONS[aliasKey];
+          var targetItem = MASTER_ITEMS.find(function(it) { return it.name === targetName; });
+          if (targetItem && !matches.some(function(m) { return m.name === targetItem.name; })) {
+            matches.unshift(targetItem);
+          }
+        }
+      }
+
+      matches = matches.slice(0, 8);
 
       dropdown.innerHTML = '';
 

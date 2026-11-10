@@ -24,8 +24,9 @@ function onOpen() {
     .addSeparator()
     .addItem('🔧 3. sticker_work_log_source 인원수(#REF! 1,492건) 일괄 자동 복구', 'repairSourceWorkerCountRefErrors')
     .addItem('📦 4. 아이템 마스터 신규 49종 정보 일괄 자동 완성', 'repairItemMasterMissingData')
-    .addItem('📋 5. 시트 드롭다운/수식 일괄 복구', 'repairSheetFormulasAndValidation')
-    .addItem('🚀 6. 원천 DB로 신규 일지 전송 (J열 특이사항 포함)', 'syncWorkLogToSourceDB')
+    .addItem('✨ 5. 마스터 오타/중복 품목(꼬깔콘콘옥수수 등) 일괄 정규화 및 통폐합', 'consolidateMasterItemDuplicates')
+    .addItem('📋 6. 시트 드롭다운/수식 일괄 복구', 'repairSheetFormulasAndValidation')
+    .addItem('🚀 7. 원천 DB로 신규 일지 전송 (J열 특이사항 포함)', 'syncWorkLogToSourceDB')
     .addToUi();
 }
 
@@ -1877,6 +1878,150 @@ function repairItemMasterMissingData() {
   } else {
     SpreadsheetApp.getUi().alert('ℹ️ 모든 품목의 기준 정보가 이미 완벽하게 채워져 있습니다.');
   }
+}
+
+/**
+ * [원클릭 복구] 마스터 품목 오타 및 중복 SKU 일괄 정규화 및 통폐합
+ * - [아이템 마스터] 중복/오타 행 정리 및 표준 SKU로 통일
+ * - [sticker_work_log_source] 과거 원천 일지 내 오타 품목명 표준 품목명으로 일괄 치환
+ * - [스티커작업일지] 작성된 일지 내 오타 품목명 일괄 치환
+ */
+function consolidateMasterItemDuplicates() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var masterSheet = ss.getSheetByName('아이템 마스터');
+  var sourceSheet = ss.getSheetByName('sticker_work_log_source');
+  var logSheet = ss.getSheetByName('스티커작업일지');
+
+  if (!masterSheet) {
+    SpreadsheetApp.getUi().alert('⚠️ [아이템 마스터] 시트가 존재하지 않습니다.');
+    return;
+  }
+
+  // 대표 오타/중복 품목 통폐합 사전 (오타/이명 -> 표준 정식 품목명)
+  var duplicateMap = {
+    '꼬깔콘콘옥수수(대)': '꼬깔콘군옥수수(대)',
+    '꼬깔콘 콘옥수수(대)': '꼬깔콘군옥수수(대)',
+    '매일요구르트오어슈거': '매일요구르트로어슈거',
+    '닭다리핫술불바베큐': '닭다리핫숯불바베큐',
+    '제로라이스쿠키&크림바': '제로아이스쿠키&크림바',
+    '수출왕고래뽁음': '수출왕고래볶음',
+    '포카칩오리지날': '포카칩오리지널',
+    '피카픽': '초코픽',
+    '촉칩': '촉촉한초코칩',
+    '광동비타500신병': '광동비타500',
+    '광동비타500오리지널': '광동비타500',
+    '국화빵정통찰떡모나카': '국화빵찰떡모나카',
+    '국화빵오리지날': '국화빵찰떡모나카',
+    '국화빵': '국화빵찰떡모나카',
+    '제로미니바이츠': '제로미니바이트',
+    '수출오감자': '오감자',
+    '수출오감자칠리': '오감자딥양념바베큐',
+    '수출왕고래볶음': '왕고래밥볶음',
+    '신당동떡볶이': '신당동신떡볶이',
+    '칸타빌레스더블망고에이드': '칸타빌레더블망고에이드',
+    '칸타빌레스블랙아메리카노': '칸타빌레블랙아메리카노',
+    '칸타빌레스오렌지에이드': '칸타빌레오렌지에이드',
+    '칸타빌레스청포도에이드': '칸타빌레청포도에이드',
+    '칸타빌레스딸기에이드': '칸타빌레딸기에이드',
+    '칸타빌레스사과에이드': '칸타빌레사과에이드',
+    '도리토스나초치즈맛(소)': '도리토스나쵸치즈맛(소)'
+  };
+
+  // 1. [아이템 마스터] 탭 전수 조사
+  var masterLastRow = masterSheet.getLastRow();
+  var masterValues = masterSheet.getRange(2, 1, masterLastRow - 1, 12).getValues();
+
+  var existingNames = {};
+  for (var i = 0; i < masterValues.length; i++) {
+    var name = String(masterValues[i][1] || '').trim();
+    if (name) {
+      existingNames[name] = i + 2;
+    }
+  }
+
+  var masterDeletedRows = 0;
+  var masterRenamedRows = 0;
+
+  // 역순으로 순회하여 삭제 시 행 번호 밀림 방지
+  for (var r = masterValues.length - 1; r >= 0; r--) {
+    var rowNum = r + 2;
+    var curName = String(masterValues[r][1] || '').trim();
+
+    if (duplicateMap[curName]) {
+      var stdName = duplicateMap[curName];
+
+      // 표준 품목이 이미 마스터 다른 행에 존재하는 경우 -> 중복 행 삭제
+      if (existingNames[stdName] && existingNames[stdName] !== rowNum) {
+        masterSheet.deleteRow(rowNum);
+        masterDeletedRows++;
+      } else {
+        // 표준 품목이 마스터에 없는 경우 -> 오타 행의 품목명을 표준명으로 갱신
+        masterSheet.getRange(rowNum, 2).setValue(stdName);
+        existingNames[stdName] = rowNum;
+        masterRenamedRows++;
+      }
+    }
+  }
+
+  // 2. [sticker_work_log_source] 원천 일지 탭 과거 데이터 전수 조사 및 치환 (G열: item_name)
+  var sourceUpdatedRows = 0;
+  if (sourceSheet) {
+    var srcLastRow = sourceSheet.getLastRow();
+    if (srcLastRow >= 2) {
+      var srcRange = sourceSheet.getRange(2, 7, srcLastRow - 1, 1);
+      var srcValues = srcRange.getValues();
+      var srcModified = false;
+
+      for (var s = 0; s < srcValues.length; s++) {
+        var rawName = String(srcValues[s][0] || '').trim();
+        if (duplicateMap[rawName]) {
+          srcValues[s][0] = duplicateMap[rawName];
+          srcModified = true;
+          sourceUpdatedRows++;
+        }
+      }
+
+      if (srcModified) {
+        srcRange.setValues(srcValues);
+      }
+    }
+  }
+
+  // 3. [스티커작업일지] 작성된 일지 전수 조사 및 치환 (D열: 품목명)
+  var logUpdatedRows = 0;
+  if (logSheet) {
+    var logLastRow = logSheet.getLastRow();
+    if (logLastRow >= 5) {
+      var logRange = logSheet.getRange(5, 4, logLastRow - 4, 1);
+      var logValues = logRange.getValues();
+      var logModified = false;
+
+      for (var l = 0; l < logValues.length; l++) {
+        var lName = String(logValues[l][0] || '').trim();
+        if (duplicateMap[lName]) {
+          logValues[l][0] = duplicateMap[lName];
+          logModified = true;
+          logUpdatedRows++;
+        }
+      }
+
+      if (logModified) {
+        logRange.setValues(logValues);
+      }
+    }
+  }
+
+  SpreadsheetApp.getUi().alert(
+    '🎉 마스터 품목 정규화 및 통폐합 완료!\n\n' +
+    '1. [아이템 마스터] 탭:\n' +
+    '   - 중복 SKU 삭제: ' + masterDeletedRows + '건 (예: 꼬깔콘콘옥수수(대))\n' +
+    '   - 오타 품목명 갱신: ' + masterRenamedRows + '건\n\n' +
+    '2. [sticker_work_log_source] 원천 DB 탭:\n' +
+    '   - 과거 오타 기록 정규화 치환: ' + sourceUpdatedRows + '건\n\n' +
+    '3. [스티커작업일지] 시트 탭:\n' +
+    '   - 작성된 일지 정규화 치환: ' + logUpdatedRows + '건\n\n' +
+    '모든 데이터가 표준 품목(꼬깔콘군옥수수(대) 등)으로 깔끔하게 일원화되었습니다.'
+  );
 }
 
 function repairSheetFormulasAndValidation() {
