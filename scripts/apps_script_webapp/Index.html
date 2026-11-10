@@ -41,6 +41,21 @@
       top: 0;
       z-index: 50;
     }
+    .btn-header-back {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px;
+      margin-left: -6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      transition: background 0.15s;
+    }
+    .btn-header-back:active {
+      background: #F2F4F6;
+    }
     .app-header h1 {
       font-size: 17px;
       font-weight: 700;
@@ -489,7 +504,14 @@
     
     <!-- Top Nav -->
     <header class="app-header">
-      <h1>우성월드 스티커 일지</h1>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button id="btn-header-back" onclick="onHeaderBack()" class="btn-header-back" style="display:none;" aria-label="이전 화면으로 돌아가기">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#191F28" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <h1>우성월드 스티커 일지</h1>
+      </div>
       <span class="badge-role">현장 관리자용</span>
     </header>
 
@@ -545,6 +567,15 @@
       <div class="step-title-area">
         <span class="step-tag">Step 2</span>
         <h2 class="step-title">작업한 품목을<br>담아주세요</h2>
+      </div>
+
+      <!-- Current Work Info Pill Card (Click to edit Step 1) -->
+      <div onclick="goToStep(1)" class="toss-card" style="padding:12px 16px; margin-bottom:14px; background:#F8FAFC; cursor:pointer; display:flex; justify-content:space-between; align-items:center; border:1px dashed #CBD5E1;" title="클릭하면 작업일자 및 인원수 수정 화면으로 이동합니다">
+        <div>
+          <span style="font-size:11px; font-weight:700; color:#64748B; display:block;">현재 설정된 작업 정보</span>
+          <span id="step2-current-info" style="font-size:14px; font-weight:800; color:#191F28;">📅 2026-11-10 | 👥 11명 (8.0h)</span>
+        </div>
+        <span style="font-size:12px; font-weight:700; color:#3182F6; background:#E8F3FF; padding:4px 8px; border-radius:6px;">수정 ➔</span>
       </div>
 
       <!-- Item Search -->
@@ -607,6 +638,9 @@
       </button>
       <button onclick="goToStep(3)" class="btn-secondary">
         목록 및 요약 확인하기 (<span id="btn-cart-count">0</span>건)
+      </button>
+      <button onclick="goToStep(1)" class="btn-secondary" style="background:transparent; border:1px solid #E5E8EB; color:#64748B; margin-top:6px;">
+        ← 이전 (근무일자 / 인원수 변경)
       </button>
     </main>
 
@@ -704,6 +738,7 @@
     }
 
     // State
+    var currentStep = 1;
     var workerCount = 11;
     var workHours = 8.0;
     var isTray = false;
@@ -742,6 +777,7 @@
     });
 
     function goToStep(n) {
+      currentStep = n;
       document.getElementById('step-1').classList.add('hidden');
       document.getElementById('step-2').classList.add('hidden');
       document.getElementById('step-3').classList.add('hidden');
@@ -749,8 +785,35 @@
 
       document.getElementById('step-' + n).classList.remove('hidden');
 
+      // Header Back Button display
+      var backBtn = document.getElementById('btn-header-back');
+      if (backBtn) {
+        if (n === 2 || n === 3) {
+          backBtn.style.display = 'inline-flex';
+        } else {
+          backBtn.style.display = 'none';
+        }
+      }
+
+      // Update Step 2 info summary pill
+      if (n === 2) {
+        var dateVal = document.getElementById('inp-date').value || '날짜 미지정';
+        var infoSpan = document.getElementById('step2-current-info');
+        if (infoSpan) {
+          infoSpan.innerText = '📅 ' + dateVal + ' | 👥 ' + workerCount + '명 (' + workHours.toFixed(1) + 'h)';
+        }
+      }
+
       if (n === 3) {
         renderCart();
+      }
+    }
+
+    function onHeaderBack() {
+      if (currentStep === 2) {
+        goToStep(1);
+      } else if (currentStep === 3) {
+        goToStep(2);
       }
     }
 
@@ -856,6 +919,11 @@
       }
       var stickers = calculateStickers();
       var buyer = document.getElementById('inp-buyer').value.trim();
+
+      if (currentItem.name.toLowerCase() === 'box' && !buyer) {
+        showToast('외박스(box) 작업은 비고/바이어를 입력해 주세요.', true);
+        return;
+      }
 
       var fieldNotes = [];
       if (isTray) fieldNotes.push('트레이 4개입');

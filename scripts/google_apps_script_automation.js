@@ -6,11 +6,13 @@
  * 1. doGet(e): 실무자 전용 토스 스타일 모바일/PC 입력 웹앱 화면 렌더링
  * 2. getItemMasterList(): [아이템 마스터] 시트에서 품목 데이터 고속 조회
  * 3. saveDailyWorkLog(payload):
+ *    - 날짜 블록 자동 위치 제자리 삽입 (In-Place Insertion): 과거/당일 추가 입력 시
+ *      날짜가 뒤섞이지 않고 해당 날짜 블록에 예쁘게 끼워 넣어짐
  *    - 당일 여러 번 추가 전송 시 기존 '계' 행 자동 병합 및 누적 합산 (중복 '계' 방지)
  *    - '계' 행 전용 배경색(#F1F3F4) 및 굵은 글씨 시각화 자동 적용
  *    - [app_audit_log] 작업 이력 감사 로그 시트에 시각, 품목, 수량 자동 기록
  *    - [sticker_work_log_source] 원천 DB에 순차 line_no 연속 채번 적재
- * 4. setupTestEnvironment(): 빈 구글 시트에서도 4종 시트 원클릭 자동 구성
+ * 4. setupTestEnvironment(): 빈 구글 시트에서도 4종 시트 원클릭 자동 구성 및 빈 시트1 자동 정리
  * ============================================================================
  */
 
@@ -78,7 +80,7 @@ function getItemMasterList() {
 }
 
 /**
- * [API 2] 오늘 작업일지 저장 (당일 스마트 병합, 계 행 색상 서식, 감사 로그 연동)
+ * [API 2] 오늘 작업일지 저장 (날짜 블록 제자리 삽입, 당일 스마트 병합, 계 행 색상 서식, 감사 로그)
  */
 function saveDailyWorkLog(payload) {
   try {
@@ -99,13 +101,14 @@ function saveDailyWorkLog(payload) {
 
     var workMonth = workDate.substring(0, 7);
 
-    // 1. [스티커작업일지] 시트 기존 당일 데이터 확인 및 '계' 행 정리
+    // 1. [스티커작업일지] 시트 기존 데이터 분석 및 제자리 삽입 위치 결정
     var lastLogRow = logSheet.getLastRow();
     var existingSummaryRow = -1;
     var maxLineNo = 0;
     var todayExistingBoxes = 0;
     var todayExistingStickers = 0;
     var isAppend = false;
+    var firstLaterRow = -1; // workDate보다 미래 날짜가 시작되는 첫 번째 행 번호
 
     if (lastLogRow >= 5) {
       var existingData = logSheet.getRange(5, 1, lastLogRow - 4, 10).getValues();
@@ -122,16 +125,13 @@ function saveDailyWorkLog(payload) {
             todayExistingBoxes += (parseInt(existingData[r][6]) || 0);
             todayExistingStickers += (parseInt(existingData[r][7]) || 0);
           }
+        } else if (firstLaterRow === -1 && rowDate && rowDate > workDate) {
+          firstLaterRow = 5 + r;
         }
       }
     }
 
-    // 기존 당일 '계' 행이 이미 있다면 삭제하여 중복 '계' 행 방지
-    if (existingSummaryRow !== -1) {
-      logSheet.deleteRow(existingSummaryRow);
-    }
-
-    // 신규 품목 행 추가 준비
+    // 신규 품목 행 추가 데이터 준비
     var logRowsToAdd = [];
     var batchBoxes = 0;
     var batchStickers = 0;
@@ -179,8 +179,24 @@ function saveDailyWorkLog(payload) {
       isAppend ? '스마트웹앱 등록 (누적)' : '스마트웹앱 등록'
     ]);
 
-    // 시트에 품목 데이터 작성
-    var insertStartRow = logSheet.getLastRow() + 1;
+    // 날짜 블록 위치에 맞춘 정확한 삽입 (In-Place Insertion)
+    var insertStartRow;
+
+    if (existingSummaryRow !== -1) {
+      // 1) 당일 데이터가 이미 있는 경우: 기존 '계' 행을 삭제하고 그 자리에 새 품목들과 갱신된 '계' 행을 제자리 삽입!
+      logSheet.deleteRow(existingSummaryRow);
+      logSheet.insertRowsBefore(existingSummaryRow, logRowsToAdd.length);
+      insertStartRow = existingSummaryRow;
+    } else if (firstLaterRow !== -1) {
+      // 2) 신규 날짜이지만 더 나중 날짜가 뒤에 있는 경우: 해당 날짜 블록 앞자리에 제자리 삽입!
+      logSheet.insertRowsBefore(firstLaterRow, logRowsToAdd.length);
+      insertStartRow = firstLaterRow;
+    } else {
+      // 3) 최신 날짜인 경우: 시트 맨 끝에 추가
+      insertStartRow = logSheet.getLastRow() + 1;
+    }
+
+    // 품목 행 값 및 서식 작성
     var itemsRange = logSheet.getRange(insertStartRow, 1, items.length, 10);
     itemsRange.setValues(logRowsToAdd.slice(0, items.length));
     itemsRange.setBackground('#FFFFFF');
@@ -309,7 +325,8 @@ function setupTestEnvironment() {
     '1) [아이템 마스터] 탭: 주요 48개 표준 품목 탑재 완료\n' +
     '2) [스티커작업일지] 탭: 10개 표준 컬럼 및 계 서식 생성 완료\n' +
     '3) [sticker_work_log_source] 탭: 14개 원천 DB 컬럼 생성 완료\n' +
-    '4) [app_audit_log] 탭: 작업 이력 실시간 기록 로그 시트 생성 완료\n\n' +
+    '4) [app_audit_log] 탭: 작업 이력 실시간 기록 로그 시트 생성 완료\n' +
+    '5) 사용되지 않는 빈 시트1 자동 정리 완료\n\n' +
     '이제 상단 [배포] -> [새 배포] -> [웹 앱] 을 실행하여 테스트해 보세요!'
   );
 }
@@ -326,7 +343,7 @@ function showWebAppDeployGuide() {
 }
 
 /**
- * 필수 시트 자동 검사 및 생성 내부 헬퍼
+ * 필수 시트 자동 검사 및 생성 내부 헬퍼 (빈 시트1 자동 삭제 포함)
  */
 function ensureRequiredSheetsExist_(ss) {
   // 1. 아이템 마스터
@@ -379,6 +396,16 @@ function ensureRequiredSheetsExist_(ss) {
     auditSheet.getRange(1, 1, 1, 10).setValues(auditHeaders);
     auditSheet.getRange(1, 1, 1, 10).setBackground('#1F2937').setFontColor('#FFFFFF').setFontWeight('bold');
     auditSheet.setFrozenRows(1);
+  }
+
+  // 5. 사용되지 않는 빈 기본 탭(시트1 / Sheet1) 자동 정리
+  var defaultSheet = ss.getSheetByName('시트1') || ss.getSheetByName('Sheet1');
+  if (defaultSheet && ss.getSheets().length > 1) {
+    if (defaultSheet.getLastRow() <= 1 && defaultSheet.getLastColumn() <= 1) {
+      try {
+        ss.deleteSheet(defaultSheet);
+      } catch (err) {}
+    }
   }
 }
 
