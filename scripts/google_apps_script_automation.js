@@ -139,7 +139,6 @@ function saveDailyWorkLog(payload) {
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
       var currentLineNo = maxLineNo + i + 1;
-      var workerCell = (maxLineNo === 0 && i === 0) ? (workerCount + '명') : '';
       var wQty = parseInt(it.workQty) || 0;
       var sQty = parseInt(it.stickerQty) || 0;
       batchBoxes += wQty;
@@ -147,7 +146,7 @@ function saveDailyWorkLog(payload) {
 
       logRowsToAdd.push([
         workDate,
-        workerCell,
+        '', // 품목 행의 '작업 인원' 컬럼은 공란 유지 (기존 양식 표준: 오직 당일 '계' 행에만 인원수 표기)
         currentLineNo,
         it.itemName,
         it.volume || '',
