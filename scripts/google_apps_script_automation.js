@@ -1873,9 +1873,7 @@ function repairItemMasterMissingData() {
 
   if (updatedCount > 0) {
     fullRange.setValues(values);
-    SpreadsheetApp.getUi().alert('🎉 아이템 마스터 복구 완료!
-
-총 ' + updatedCount + '개 신규 품목의 코드, 제조사, 중량, 입량, 난이도 정보가 완벽하게 채워졌습니다.');
+    SpreadsheetApp.getUi().alert('🎉 아이템 마스터 복구 완료!\n\n총 ' + updatedCount + '개 신규 품목의 코드, 제조사, 중량, 입량, 난이도 정보가 완벽하게 채워졌습니다.');
   } else {
     SpreadsheetApp.getUi().alert('ℹ️ 모든 품목의 기준 정보가 이미 완벽하게 채워져 있습니다.');
   }
