@@ -447,9 +447,44 @@
       to { transform: rotate(360deg); }
     }
     .hidden { display: none !important; }
+
+    .toss-toast {
+      position: fixed;
+      top: -80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #191F28;
+      color: #FFFFFF;
+      padding: 13px 24px;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+      z-index: 9999;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+      opacity: 0;
+      white-space: nowrap;
+    }
+    .toss-toast.show {
+      top: 24px;
+      opacity: 1;
+    }
+    .toss-toast.error {
+      background: #E11D48;
+    }
   </style>
 </head>
 <body>
+  <!-- Toss-style Floating Toast Notification -->
+  <div id=toss-toast class=toss-toast>
+    <span id=toast-icon>✓</span>
+    <span id=toast-msg>알림 메시지</span>
+  </div>
+
   <div class="app-container">
     
     <!-- Top Nav -->
@@ -647,6 +682,27 @@
   </div>
 
   <script>
+    var toastTimer = null;
+    function showToast(msg, isError) {
+      var toast = document.getElementById('toss-toast');
+      var toastMsg = document.getElementById('toast-msg');
+      var toastIcon = document.getElementById('toast-icon');
+
+      toastMsg.innerText = msg;
+      toastIcon.innerText = isError ? '⚠️' : '✓';
+      if (isError) {
+        toast.classList.add('error');
+      } else {
+        toast.classList.remove('error');
+      }
+      toast.classList.add('show');
+
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(function() {
+        toast.classList.remove('show');
+      }, 2400);
+    }
+
     // State
     var workerCount = 11;
     var workHours = 8.0;
@@ -795,7 +851,7 @@
     function addCurrentItem() {
       var boxQty = parseInt(document.getElementById('inp-box-qty').value) || 0;
       if (boxQty <= 0) {
-        alert('작업 박스 수량을 1 이상 입력해 주세요.');
+        showToast('작업 박스 수량을 1 이상 입력해 주세요.', true);
         return;
       }
       var stickers = calculateStickers();
@@ -816,7 +872,7 @@
       });
 
       document.getElementById('btn-cart-count').innerText = cartItems.length;
-      alert(currentItem.name + ' ' + boxQty + '박스가 목록에 추가되었습니다.');
+      showToast(currentItem.name + ' ' + boxQty + '박스가 목록에 추가되었습니다 (총 ' + cartItems.length + '건)');
 
       // Reset switches for next item
       isTray = false;
@@ -871,7 +927,7 @@
 
     function submitWorkLog() {
       if (cartItems.length === 0) {
-        alert('전송할 품목이 없습니다. 최소 1개 이상 품목을 담아주세요.');
+        showToast('전송할 품목이 없습니다. 최소 1개 이상 담아주세요.', true);
         return;
       }
 
@@ -894,13 +950,13 @@
             if (res && res.success) {
               onSuccessSubmitted(payload, res);
             } else {
-              alert('저장 실패: ' + (res ? res.message : '알 수 없는 오류'));
+              showToast('저장 실패: ' + (res ? res.message : '오류 발생'), true);
             }
           })
           .withFailureHandler(function(err) {
             btn.disabled = false;
             btn.innerHTML = '<span>🚀 구글 시트로 최종 전송</span>';
-            alert('통신 오류 발생: ' + err.toString());
+            showToast('통신 오류: ' + err.toString(), true);
           })
           .saveDailyWorkLog(payload);
       } else {
@@ -932,3 +988,4 @@
   </script>
 </body>
 </html>
+

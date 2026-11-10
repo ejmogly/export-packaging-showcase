@@ -2,20 +2,22 @@
  * ============================================================================
  * 우성월드 스티커 작업일지 관리자 전용 스마트 웹앱 백엔드 (Code.gs)
  * ============================================================================
- * [기능 목록]
+ * [주요 기능]
  * 1. doGet(e): 실무자 전용 토스 스타일 모바일/PC 입력 웹앱 화면 렌더링
  * 2. getItemMasterList(): [아이템 마스터] 시트에서 품목 데이터 고속 조회
- * 3. saveDailyWorkLog(payload): [스티커작업일지] 및 [sticker_work_log_source]에
- *    수식 깨짐 없이 순수 정형 데이터로 일괄 안전 적재
- * 4. setupTestEnvironment(): 빈 구글 시트에서도 원클릭으로 3개 시트 자동 생성 및
- *    표준 품목 탑재 (테스트 시트 원클릭 세팅 지원)
+ * 3. saveDailyWorkLog(payload):
+ *    - 당일 여러 번 추가 전송 시 기존 '계' 행 자동 병합 및 누적 합산 (중복 '계' 방지)
+ *    - '계' 행 전용 배경색(#F1F3F4) 및 굵은 글씨 시각화 자동 적용
+ *    - [app_audit_log] 작업 이력 감사 로그 시트에 시각, 품목, 수량 자동 기록
+ *    - [sticker_work_log_source] 원천 DB에 순차 line_no 연속 채번 적재
+ * 4. setupTestEnvironment(): 빈 구글 시트에서도 4종 시트 원클릭 자동 구성
  * ============================================================================
  */
 
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
   ui.createMenu('⚡ 스티커 일지 자동화')
-    .addItem('🛠️ 1. 테스트 환경 원클릭 자동 세팅 (시트 3종 생성)', 'setupTestEnvironment')
+    .addItem('🛠️ 1. 테스트 환경 원클릭 자동 세팅 (시트 자동 생성 및 마스터 탑재)', 'setupTestEnvironment')
     .addItem('📱 2. 관리자 전용 웹앱 배포 안내', 'showWebAppDeployGuide')
     .addSeparator()
     .addItem('🚀 3. 원천 DB로 신규 일지 전송 (J열 특이사항 포함)', 'syncWorkLogToSourceDB')
@@ -45,7 +47,6 @@ function getItemMasterList() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var masterSheet = ss.getSheetByName('아이템 마스터');
 
-  // 시트가 없으면 자동으로 생성
   if (!masterSheet) {
     ensureRequiredSheetsExist_(ss);
     masterSheet = ss.getSheetByName('아이템 마스터');
@@ -57,7 +58,6 @@ function getItemMasterList() {
     lastRow = masterSheet.getLastRow();
   }
 
-  // B열(2: 품목명), D열(4: 제조사), G열(7: 중량), J열(10: 기본입량)
   var rangeData = masterSheet.getRange(2, 1, lastRow - 1, 10).getValues();
   var items = [];
 
@@ -78,7 +78,7 @@ function getItemMasterList() {
 }
 
 /**
- * [API 2] 오늘 작업일지 저장 (스티커작업일지 & sticker_work_log_source 동시 적재)
+ * [API 2] 오늘 작업일지 저장 (당일 스마트 병합, 계 행 색상 서식, 감사 로그 연동)
  */
 function saveDailyWorkLog(payload) {
   try {
@@ -98,23 +98,57 @@ function saveDailyWorkLog(payload) {
     }
 
     var workMonth = workDate.substring(0, 7);
+
+    // 1. [스티커작업일지] 시트 기존 당일 데이터 확인 및 '계' 행 정리
+    var lastLogRow = logSheet.getLastRow();
+    var existingSummaryRow = -1;
+    var maxLineNo = 0;
+    var todayExistingBoxes = 0;
+    var todayExistingStickers = 0;
+    var isAppend = false;
+
+    if (lastLogRow >= 5) {
+      var existingData = logSheet.getRange(5, 1, lastLogRow - 4, 10).getValues();
+      for (var r = 0; r < existingData.length; r++) {
+        var rowDate = formatDateKey_(existingData[r][0]);
+        if (rowDate === workDate) {
+          isAppend = true;
+          var itemCell = String(existingData[r][3] || '').trim();
+          var lineNum = parseInt(existingData[r][2]) || 0;
+          if (itemCell === '계') {
+            existingSummaryRow = 5 + r;
+          } else {
+            maxLineNo = Math.max(maxLineNo, lineNum);
+            todayExistingBoxes += (parseInt(existingData[r][6]) || 0);
+            todayExistingStickers += (parseInt(existingData[r][7]) || 0);
+          }
+        }
+      }
+    }
+
+    // 기존 당일 '계' 행이 이미 있다면 삭제하여 중복 '계' 행 방지
+    if (existingSummaryRow !== -1) {
+      logSheet.deleteRow(existingSummaryRow);
+    }
+
+    // 신규 품목 행 추가 준비
     var logRowsToAdd = [];
-    var totalBoxes = 0;
-    var totalStickers = 0;
+    var batchBoxes = 0;
+    var batchStickers = 0;
 
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
-      var lineNo = i + 1;
-      var workerCell = (i === 0) ? (workerCount + '명') : '';
+      var currentLineNo = maxLineNo + i + 1;
+      var workerCell = (maxLineNo === 0 && i === 0) ? (workerCount + '명') : '';
       var wQty = parseInt(it.workQty) || 0;
       var sQty = parseInt(it.stickerQty) || 0;
-      totalBoxes += wQty;
-      totalStickers += sQty;
+      batchBoxes += wQty;
+      batchStickers += sQty;
 
       logRowsToAdd.push([
         workDate,
         workerCell,
-        lineNo,
+        currentLineNo,
         it.itemName,
         it.volume || '',
         it.packQty || '',
@@ -125,24 +159,56 @@ function saveDailyWorkLog(payload) {
       ]);
     }
 
-    // 소계(합계) 행
+    // 당일 누적 합계 산정
+    var grandTotalBoxes = todayExistingBoxes + batchBoxes;
+    var grandTotalStickers = todayExistingStickers + batchStickers;
+    var grandTotalItems = maxLineNo + items.length;
+    var perPersonStickers = Math.round(grandTotalStickers / (workerCount || 11));
+
+    // 통합 '계' 요약 행 (당일 단 1개만 생성)
     logRowsToAdd.push([
       workDate,
       workerCount + '명',
-      items.length,
+      grandTotalItems,
       '계',
       '',
       '',
-      totalBoxes,
-      totalStickers,
-      items.length + '개 품목 작업 완료',
-      '스마트웹앱 등록'
+      grandTotalBoxes,
+      grandTotalStickers,
+      perPersonStickers.toLocaleString() + '장 개인별 작업량',
+      isAppend ? '스마트웹앱 등록 (누적)' : '스마트웹앱 등록'
     ]);
 
-    var logLastRow = logSheet.getLastRow();
-    logSheet.getRange(logLastRow + 1, 1, logRowsToAdd.length, 10).setValues(logRowsToAdd);
+    // 시트에 품목 데이터 작성
+    var insertStartRow = logSheet.getLastRow() + 1;
+    var itemsRange = logSheet.getRange(insertStartRow, 1, items.length, 10);
+    itemsRange.setValues(logRowsToAdd.slice(0, items.length));
+    itemsRange.setBackground('#FFFFFF');
+    itemsRange.setFontWeight('normal');
 
-    // 원천 DB 시트 적재
+    // '계' 요약 행 서식 적용: 전용 배경색(#F1F3F4), 굵은 글씨, 가운데 정렬
+    var summaryRowIndex = insertStartRow + items.length;
+    var summaryRange = logSheet.getRange(summaryRowIndex, 1, 1, 10);
+    summaryRange.setValues([logRowsToAdd[logRowsToAdd.length - 1]]);
+    summaryRange.setBackground('#F1F3F4');
+    summaryRange.setFontWeight('bold');
+    summaryRange.setFontColor('#191F28');
+    logSheet.getRange(summaryRowIndex, 4).setHorizontalAlignment('center');
+
+    // 2. [sticker_work_log_source] 원천 DB 시트 연속 line_no 부여 및 적재
+    var lastDbRow = dbSheet.getLastRow();
+    var maxDbLineNo = 0;
+    if (lastDbRow >= 2) {
+      var dbRows = dbSheet.getRange(2, 4, lastDbRow - 1, 3).getValues();
+      for (var d = 0; d < dbRows.length; d++) {
+        var dbDate = formatDateKey_(dbRows[d][0]);
+        if (dbDate === workDate) {
+          var dbLNo = parseInt(dbRows[d][2]) || 0;
+          maxDbLineNo = Math.max(maxDbLineNo, dbLNo);
+        }
+      }
+    }
+
     var dbRowsToAdd = [];
     for (var j = 0; j < items.length; j++) {
       var itm = items[j];
@@ -154,7 +220,7 @@ function saveDailyWorkLog(payload) {
         workMonth,
         workDate,
         workerCount,
-        (j + 1),
+        (maxDbLineNo + j + 1),
         itm.itemName,
         itm.volume || '',
         itm.packQty || 0,
@@ -165,20 +231,70 @@ function saveDailyWorkLog(payload) {
         noteText
       ]);
     }
+    dbSheet.getRange(dbSheet.getLastRow() + 1, 1, dbRowsToAdd.length, 14).setValues(dbRowsToAdd);
 
-    var dbLastRow = dbSheet.getLastRow();
-    dbSheet.getRange(dbLastRow + 1, 1, dbRowsToAdd.length, 14).setValues(dbRowsToAdd);
+    // 3. 작업 이력 감사 로그 [app_audit_log] 기록
+    recordAuditLog_(ss, {
+      timestamp: Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss'),
+      actionType: isAppend ? '당일 일지 추가등록' : '신규 일지 등록',
+      workDate: workDate,
+      workerCount: workerCount,
+      workHours: workHours,
+      itemCount: items.length,
+      batchBoxes: batchBoxes,
+      batchStickers: batchStickers,
+      items: items
+    });
 
     return {
       success: true,
       rowCount: items.length,
-      totalBoxes: totalBoxes,
-      totalStickers: totalStickers,
+      isAppend: isAppend,
+      batchBoxes: batchBoxes,
+      batchStickers: batchStickers,
+      grandTotalBoxes: grandTotalBoxes,
+      grandTotalStickers: grandTotalStickers,
       message: '성공적으로 ' + items.length + '개 품목이 등록되었습니다.'
     };
   } catch (e) {
     return { success: false, message: '저장 중 오류 발생: ' + e.toString() };
   }
+}
+
+/**
+ * [기능 3] 작업 이력 감사 로그 시트 기록 내부 헬퍼
+ */
+function recordAuditLog_(ss, data) {
+  var auditSheet = ss.getSheetByName('app_audit_log');
+  if (!auditSheet) {
+    auditSheet = ss.insertSheet('app_audit_log');
+    var headers = [[
+      '기록일시(KST)', '작업구분', '작업일자', '작업인원', '근무시간',
+      '품목수', '작업수량(박스)', '스티커수량(매)', '등록품목 상세내역', '실행상태'
+    ]];
+    auditSheet.getRange(1, 1, 1, 10).setValues(headers);
+    auditSheet.getRange(1, 1, 1, 10).setBackground('#1F2937').setFontColor('#FFFFFF').setFontWeight('bold');
+    auditSheet.setFrozenRows(1);
+  }
+
+  var itemDetail = data.items.map(function(it) {
+    return it.itemName + '(' + it.workQty + '박스/' + it.stickerQty + '매)';
+  }).join(', ');
+
+  var logRow = [[
+    data.timestamp,
+    data.actionType,
+    data.workDate,
+    data.workerCount + '명',
+    data.workHours + 'h',
+    data.itemCount + '건',
+    data.batchBoxes,
+    data.batchStickers,
+    itemDetail,
+    '정상 완료'
+  ]];
+
+  auditSheet.getRange(auditSheet.getLastRow() + 1, 1, 1, 10).setValues(logRow);
 }
 
 /**
@@ -191,8 +307,9 @@ function setupTestEnvironment() {
   SpreadsheetApp.getUi().alert(
     '✅ 테스트 환경 자동 구성이 완료되었습니다!\n\n' +
     '1) [아이템 마스터] 탭: 주요 48개 표준 품목 탑재 완료\n' +
-    '2) [스티커작업일지] 탭: 10개 표준 컬럼 및 헤더 서식 생성 완료\n' +
-    '3) [sticker_work_log_source] 탭: 14개 원천 DB 컬럼 생성 완료\n\n' +
+    '2) [스티커작업일지] 탭: 10개 표준 컬럼 및 계 서식 생성 완료\n' +
+    '3) [sticker_work_log_source] 탭: 14개 원천 DB 컬럼 생성 완료\n' +
+    '4) [app_audit_log] 탭: 작업 이력 실시간 기록 로그 시트 생성 완료\n\n' +
     '이제 상단 [배포] -> [새 배포] -> [웹 앱] 을 실행하여 테스트해 보세요!'
   );
 }
@@ -209,7 +326,7 @@ function showWebAppDeployGuide() {
 }
 
 /**
- * 필수 3종 시트 자동 검사 및 생성 내부 헬퍼
+ * 필수 시트 자동 검사 및 생성 내부 헬퍼
  */
 function ensureRequiredSheetsExist_(ss) {
   // 1. 아이템 마스터
@@ -249,6 +366,19 @@ function ensureRequiredSheetsExist_(ss) {
     ]];
     dbSheet.getRange(1, 1, 1, 14).setValues(dbHeaders);
     dbSheet.getRange(1, 1, 1, 14).setBackground('#E6F4EA').setFontWeight('bold');
+  }
+
+  // 4. app_audit_log
+  var auditSheet = ss.getSheetByName('app_audit_log');
+  if (!auditSheet) {
+    auditSheet = ss.insertSheet('app_audit_log');
+    var auditHeaders = [[
+      '기록일시(KST)', '작업구분', '작업일자', '작업인원', '근무시간',
+      '품목수', '작업수량(박스)', '스티커수량(매)', '등록품목 상세내역', '실행상태'
+    ]];
+    auditSheet.getRange(1, 1, 1, 10).setValues(auditHeaders);
+    auditSheet.getRange(1, 1, 1, 10).setBackground('#1F2937').setFontColor('#FFFFFF').setFontWeight('bold');
+    auditSheet.setFrozenRows(1);
   }
 }
 
@@ -836,9 +966,21 @@ function populateSampleItems_(sheet) {
   }
 }
 
-/**
- * 인라인 HTML 폴백
- */
+function formatDateKey_(val) {
+  if (!val) return '';
+  if (Object.prototype.toString.call(val) === '[object Date]') {
+    return Utilities.formatDate(val, Session.getScriptTimeZone() || 'Asia/Seoul', 'yyyy-MM-dd');
+  }
+  var s = String(val).trim();
+  var m = s.match(/(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+  if (m) {
+    var mm = ('0' + m[2]).slice(-2);
+    var dd = ('0' + m[3]).slice(-2);
+    return m[1] + '-' + mm + '-' + dd;
+  }
+  return s;
+}
+
 function getEmbeddedHtml_() {
   return '<!DOCTYPE html><html><body style="font-family:sans-serif;padding:30px;text-align:center;">' +
          '<h3>Index.html 파일이 필요합니다.</h3>' +
@@ -846,9 +988,6 @@ function getEmbeddedHtml_() {
          '</body></html>';
 }
 
-/**
- * [기능 2] 기존 일지 수동 동기화 및 복구 함수
- */
 function syncWorkLogToSourceDB() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var logSheet = ss.getSheetByName('스티커작업일지');
