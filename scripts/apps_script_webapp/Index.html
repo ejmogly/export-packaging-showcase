@@ -587,17 +587,33 @@
         </div>
 
         <div class="chip-container">
-          <button onclick="quickPick('꼬북칩콘스프', '80', 12, '오리온', '판아시아 오스트리아')" class="toss-chip">꼬북칩콘스프</button>
-          <button onclick="quickPick('초코파이', '468', 8, '오리온', '판아시아 오스트리아')" class="toss-chip">초코파이</button>
-          <button onclick="quickPick('에이스바스크치즈', '364', 10, '해태', 'H73')" class="toss-chip">에이스바스크치즈</button>
-          <button onclick="quickPick('캐나다용화이트빼빼로', '32', 40, '롯데', '5141(롯데 캐나다)')" class="toss-chip">캐나다빼빼로</button>
-          <button onclick="quickPick('box', '', 0, '외포장', '판아시아 오스트리아')" class="toss-chip" style="background:#FEF3C7; color:#92400E; font-weight:700;">📦 외박스(box)</button>
+          <button type="button" onclick="quickPick('꼬북칩콘스프', '80', 12, '오리온', '판아시아 오스트리아')" class="toss-chip">꼬북칩콘스프</button>
+          <button type="button" onclick="quickPick('초코파이', '468', 8, '오리온', '판아시아 오스트리아')" class="toss-chip">초코파이</button>
+          <button type="button" onclick="quickPick('에이스바스크치즈', '364', 10, '해태', 'H73')" class="toss-chip">에이스바스크치즈</button>
+          <button type="button" onclick="quickPick('캐나다용화이트빼빼로', '32', 40, '롯데', '5141(롯데 캐나다)')" class="toss-chip">캐나다빼빼로</button>
+          <button type="button" onclick="quickPick('box', '', 0, '외포장', '')" class="toss-chip" style="background:#FEF3C7; color:#92400E; font-weight:700;">📦 외박스(box)</button>
         </div>
 
-        <div class="meta-box">
-          <div>중량: <strong id="disp-vol">80g</strong></div>
-          <div>입량: <strong id="disp-pack">12개입</strong></div>
-          <div>제조사: <strong id="disp-mfg">오리온</strong></div>
+        <!-- Specification Meta Box (Editable Pack Qty, Weight, Mfg) -->
+        <div class="meta-box" style="align-items: center; padding: 10px 14px; gap: 8px;">
+          <div style="flex: 1;">
+            <span style="font-size: 11px; color: #8B95A1; display: block; margin-bottom: 2px;">중량</span>
+            <input id="inp-item-vol" type="text" value="80g" placeholder="예: 80g" style="width: 100%; border: none; background: transparent; font-size: 13px; font-weight: 700; color: #191F28; outline: none;" oninput="onMetaChange()">
+          </div>
+          <div style="flex: 1.3; border-left: 1px solid #E5E8EB; padding-left: 10px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+              <span style="font-size: 11px; color: #3182F6; font-weight: 700;">입량 (개입)</span>
+              <span id="pack-badge" style="font-size: 10px; color: #8B95A1;">수정가능</span>
+            </div>
+            <div style="display: flex; align-items: center;">
+              <input id="inp-item-pack" type="number" inputmode="numeric" value="12" placeholder="12" style="width: 56px; border: 1px solid #CBD5E1; border-radius: 6px; padding: 3px 6px; font-size: 14px; font-weight: 800; color: #191F28; outline: none; background: #FFFFFF; text-align: right;" oninput="onPackQtyChange()">
+              <span style="font-size: 12px; font-weight: 700; color: #4E5968; margin-left: 4px;">입</span>
+            </div>
+          </div>
+          <div style="flex: 1; border-left: 1px solid #E5E8EB; padding-left: 10px;">
+            <span style="font-size: 11px; color: #8B95A1; display: block; margin-bottom: 2px;">제조사</span>
+            <input id="inp-item-mfg" type="text" value="오리온" placeholder="제조사" style="width: 100%; border: none; background: transparent; font-size: 13px; font-weight: 700; color: #191F28; outline: none;" oninput="onMetaChange()">
+          </div>
         </div>
       </div>
 
@@ -615,8 +631,15 @@
         </div>
 
         <div class="result-banner">
-          <span class="result-label">스티커 수량 자동 계산</span>
-          <span id="disp-calc-stickers" class="result-num">1,800 매</span>
+          <div>
+            <span class="result-label" id="lbl-calc-stickers">스티커 수량 자동 계산</span>
+            <button type="button" id="btn-toggle-manual-stickers" onclick="toggleManualStickers()" style="background:none; border:none; color:#93C5FD; font-size:11px; font-weight:700; text-decoration:underline; cursor:pointer; margin-left:6px; padding:2px;">직접 수정</button>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            <span id="disp-calc-stickers" class="result-num">1,800 매</span>
+            <input id="inp-manual-stickers" type="number" inputmode="numeric" style="display:none; width:110px; font-size:20px; font-weight:900; color:#FFFFFF; background:#374151; border:1px solid #4B5563; border-radius:8px; padding:4px 8px; text-align:right; outline:none;" oninput="onManualStickersInput()">
+            <span id="unit-manual-stickers" style="display:none; font-size:15px; font-weight:700; color:#4EA3F8;">매</span>
+          </div>
         </div>
       </div>
 
@@ -830,24 +853,76 @@
       document.getElementById('tab-h10').className = h === 10.0 ? 'tab-pill active' : 'tab-pill';
     }
 
+    var isManualStickers = false;
+
+    function onPackQtyChange() {
+      var packVal = parseInt(document.getElementById('inp-item-pack').value);
+      currentItem.packQty = isNaN(packVal) ? 0 : packVal;
+      calculateStickers();
+    }
+
+    function onMetaChange() {
+      currentItem.volume = document.getElementById('inp-item-vol').value.trim();
+      currentItem.mfg = document.getElementById('inp-item-mfg').value.trim();
+    }
+
+    function toggleManualStickers() {
+      isManualStickers = !isManualStickers;
+      var lbl = document.getElementById('lbl-calc-stickers');
+      var btn = document.getElementById('btn-toggle-manual-stickers');
+      var disp = document.getElementById('disp-calc-stickers');
+      var inp = document.getElementById('inp-manual-stickers');
+      var unit = document.getElementById('unit-manual-stickers');
+
+      if (isManualStickers) {
+        lbl.innerText = '스티커 수량 직접 입력 (수기)';
+        btn.innerText = '자동 계산으로 복구';
+        disp.style.display = 'none';
+        inp.style.display = 'inline-block';
+        unit.style.display = 'inline-block';
+        inp.focus();
+      } else {
+        lbl.innerText = '스티커 수량 자동 계산';
+        btn.innerText = '직접 수정';
+        disp.style.display = 'inline';
+        inp.style.display = 'none';
+        unit.style.display = 'none';
+        calculateStickers();
+      }
+    }
+
+    function onManualStickersInput() {
+      // User typed custom sticker quantity directly
+    }
+
     function onSearchInput(query) {
       var dropdown = document.getElementById('search-dropdown');
-      var q = query.trim().toLowerCase();
-      if (!q || MASTER_ITEMS.length === 0) {
+      var q = query.trim();
+      if (!q) {
         dropdown.style.display = 'none';
         return;
       }
 
+      var qLower = q.toLowerCase();
       var matches = MASTER_ITEMS.filter(function(it) {
-        return it.name.toLowerCase().indexOf(q) !== -1;
+        return it.name.toLowerCase().indexOf(qLower) !== -1;
       }).slice(0, 8);
 
-      if (matches.length === 0) {
-        dropdown.style.display = 'none';
-        return;
-      }
-
       dropdown.innerHTML = '';
+
+      // Direct option to use typed text as new/custom item
+      var newOption = document.createElement('div');
+      newOption.className = 'search-dropdown-item';
+      newOption.style.background = '#F0FDF4';
+      newOption.style.color = '#15803D';
+      newOption.style.fontWeight = '700';
+      newOption.innerHTML = '<span>✨ \'' + q + '\' 신규 품목으로 입력</span><span style="font-size:11px; color:#16A34A;">신규 등록</span>';
+      newOption.onclick = function() {
+        selectAsNewItem(q);
+        dropdown.style.display = 'none';
+      };
+      dropdown.appendChild(newOption);
+
       matches.forEach(function(it) {
         var row = document.createElement('div');
         row.className = 'search-dropdown-item';
@@ -861,18 +936,38 @@
       dropdown.style.display = 'block';
     }
 
+    function selectAsNewItem(name) {
+      currentItem.name = name;
+      currentItem.volume = '';
+      currentItem.packQty = 12;
+      currentItem.mfg = '기타';
+
+      document.getElementById('inp-item-search').value = name;
+      document.getElementById('inp-item-vol').value = '';
+      document.getElementById('inp-item-pack').value = 12;
+      document.getElementById('inp-item-mfg').value = '';
+      document.getElementById('pack-badge').innerText = '입량확인필요';
+      document.getElementById('pack-badge').style.color = '#EF4444';
+
+      document.getElementById('inp-item-pack').focus();
+      showToast('\'' + name + '\' 신규 품목입니다. 입량과 제조사를 확인해 주세요.');
+      calculateStickers();
+    }
+
     function quickPick(name, vol, pack, mfg, defaultBuyer) {
       currentItem.name = name;
-      currentItem.volume = vol;
+      currentItem.volume = vol || '';
       currentItem.packQty = parseInt(pack) || 0;
       currentItem.mfg = mfg || '';
 
       document.getElementById('inp-item-search').value = name;
-      document.getElementById('disp-vol').innerText = vol ? (vol + 'g') : '-';
-      document.getElementById('disp-pack').innerText = pack ? (pack + '개입') : '-';
-      document.getElementById('disp-mfg').innerText = mfg || '-';
+      document.getElementById('inp-item-vol').value = vol ? (vol + (vol.toString().endsWith('g') ? '' : 'g')) : '';
+      document.getElementById('inp-item-pack').value = currentItem.packQty || (name.toLowerCase() === 'box' ? 0 : 12);
+      document.getElementById('inp-item-mfg').value = mfg || '';
+      document.getElementById('pack-badge').innerText = '수정가능';
+      document.getElementById('pack-badge').style.color = '#8B95A1';
 
-      if (defaultBuyer) {
+      if (defaultBuyer !== undefined && defaultBuyer !== null) {
         document.getElementById('inp-buyer').value = defaultBuyer;
       }
       document.getElementById('search-dropdown').style.display = 'none';
@@ -895,7 +990,15 @@
     }
 
     function calculateStickers() {
+      if (isManualStickers) {
+        var manualVal = parseInt(document.getElementById('inp-manual-stickers').value) || 0;
+        return manualVal;
+      }
+
       var boxQty = parseInt(document.getElementById('inp-box-qty').value) || 0;
+      var packQty = parseInt(document.getElementById('inp-item-pack').value);
+      if (isNaN(packQty)) packQty = 0;
+
       var mult = 1;
       if (isTray) mult *= 4;
       if (isDouble) mult *= 2;
@@ -904,35 +1007,51 @@
       if (currentItem.name.toLowerCase() === 'box') {
         stickers = boxQty; // outer box 1:1
       } else {
-        stickers = boxQty * (currentItem.packQty || 12) * mult;
+        stickers = boxQty * packQty * mult;
       }
 
       document.getElementById('disp-calc-stickers').innerText = stickers.toLocaleString() + ' 매';
+      document.getElementById('inp-manual-stickers').value = stickers;
       return stickers;
     }
 
     function addCurrentItem() {
+      var itemName = document.getElementById('inp-item-search').value.trim();
+      if (!itemName) {
+        showToast('품목명을 입력하거나 선택해 주세요.', true);
+        return;
+      }
+      currentItem.name = itemName;
+
       var boxQty = parseInt(document.getElementById('inp-box-qty').value) || 0;
       if (boxQty <= 0) {
         showToast('작업 박스 수량을 1 이상 입력해 주세요.', true);
         return;
       }
-      var stickers = calculateStickers();
-      var buyer = document.getElementById('inp-buyer').value.trim();
 
-      if (currentItem.name.toLowerCase() === 'box' && !buyer) {
-        showToast('외박스(box) 작업은 비고/바이어를 입력해 주세요.', true);
+      var packQty = parseInt(document.getElementById('inp-item-pack').value);
+      if (isNaN(packQty)) packQty = 0;
+
+      if (currentItem.name.toLowerCase() !== 'box' && packQty <= 0) {
+        showToast('품목의 입량(개입)을 1 이상 입력해 주세요.', true);
         return;
       }
+
+      var stickers = calculateStickers();
+      var buyer = document.getElementById('inp-buyer').value.trim();
+      var vol = document.getElementById('inp-item-vol').value.trim();
+      var mfg = document.getElementById('inp-item-mfg').value.trim();
 
       var fieldNotes = [];
       if (isTray) fieldNotes.push('트레이 4개입');
       if (isDouble) fieldNotes.push('2장 부착');
+      if (isManualStickers) fieldNotes.push('스티커수기입력');
 
       cartItems.push({
         itemName: currentItem.name,
-        volume: currentItem.volume,
-        packQty: currentItem.packQty,
+        volume: vol.replace(/g$/i, ''),
+        packQty: packQty,
+        mfg: mfg,
         workQty: boxQty,
         stickerQty: stickers,
         remark: buyer,
@@ -942,11 +1061,17 @@
       document.getElementById('btn-cart-count').innerText = cartItems.length;
       showToast(currentItem.name + ' ' + boxQty + '박스가 목록에 추가되었습니다 (총 ' + cartItems.length + '건)');
 
-      // Reset switches for next item
+      // Reset switches & manual mode for next item
       isTray = false;
       isDouble = false;
+      isManualStickers = false;
       document.getElementById('btn-sw-tray').className = 'switch-btn';
       document.getElementById('btn-sw-double').className = 'switch-btn';
+      document.getElementById('lbl-calc-stickers').innerText = '스티커 수량 자동 계산';
+      document.getElementById('btn-toggle-manual-stickers').innerText = '직접 수정';
+      document.getElementById('disp-calc-stickers').style.display = 'inline';
+      document.getElementById('inp-manual-stickers').style.display = 'none';
+      document.getElementById('unit-manual-stickers').style.display = 'none';
       calculateStickers();
     }
 
@@ -965,12 +1090,19 @@
         totalBoxes += item.workQty;
         totalStickers += item.stickerQty;
 
+        var specText = [];
+        if (item.mfg) specText.push(item.mfg);
+        if (item.volume) specText.push(item.volume + 'g');
+        if (item.packQty) specText.push(item.packQty + '입');
+        var specDesc = specText.join(' x ') || (item.itemName.toLowerCase() === 'box' ? '외박스' : '-');
+        var subLine = (item.remark ? item.remark + ' | ' : '') + specDesc + (item.fieldNote ? ' (' + item.fieldNote + ')' : '');
+
         var card = document.createElement('div');
         card.className = 'cart-item-card';
         card.innerHTML = 
           '<div class="cart-item-info">' +
             '<h4>' + item.itemName + '</h4>' +
-            '<p>' + (item.remark ? item.remark + ' | ' : '') + item.volume + 'g x ' + item.packQty + '입' + (item.fieldNote ? ' (' + item.fieldNote + ')' : '') + '</p>' +
+            '<p>' + subLine + '</p>' +
           '</div>' +
           '<div style="display:flex; align-items:center;">' +
             '<div class="cart-item-qty">' +

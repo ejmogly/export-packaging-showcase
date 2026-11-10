@@ -249,7 +249,10 @@ function saveDailyWorkLog(payload) {
     }
     dbSheet.getRange(dbSheet.getLastRow() + 1, 1, dbRowsToAdd.length, 14).setValues(dbRowsToAdd);
 
-    // 3. 작업 이력 감사 로그 [app_audit_log] 기록
+    // 3. 미등록 신규 품목 발견 시 [아이템 마스터] 시트에 자동 등록 (마스터 자동 학습/확장)
+    autoRegisterNewMasterItems_(ss, items);
+
+    // 4. 작업 이력 감사 로그 [app_audit_log] 기록
     recordAuditLog_(ss, {
       timestamp: Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss'),
       actionType: isAppend ? '당일 일지 추가등록' : '신규 일지 등록',
@@ -278,7 +281,62 @@ function saveDailyWorkLog(payload) {
 }
 
 /**
- * [기능 3] 작업 이력 감사 로그 시트 기록 내부 헬퍼
+ * [기능 3] 미등록 신규 품목 자동 마스터 등록 헬퍼
+ */
+function autoRegisterNewMasterItems_(ss, items) {
+  try {
+    var masterSheet = ss.getSheetByName('아이템 마스터');
+    if (!masterSheet) return;
+
+    var lastRow = masterSheet.getLastRow();
+    var existingMap = {};
+    if (lastRow >= 2) {
+      var names = masterSheet.getRange(2, 2, lastRow - 1, 1).getValues();
+      for (var i = 0; i < names.length; i++) {
+        var n = String(names[i][0] || '').trim().toLowerCase();
+        if (n) existingMap[n] = true;
+      }
+    }
+
+    var newRows = [];
+    for (var j = 0; j < items.length; j++) {
+      var item = items[j];
+      var name = String(item.itemName || '').trim();
+      var lower = name.toLowerCase();
+      if (!name || lower === 'box' || lower === '계') continue;
+
+      if (!existingMap[lower]) {
+        existingMap[lower] = true; // 중복 추가 방지
+        var mfg = item.mfg || '기타';
+        var vol = item.volume ? String(item.volume).replace(/g$/i, '').trim() : '';
+        var pack = parseInt(item.packQty) || 0;
+        var newCode = 'NEW_' + Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyMMdd_HHmmss') + '_' + (j + 1);
+
+        newRows.push([
+          newCode,
+          name,
+          mfg,
+          mfg,
+          '신규품목',
+          '스마트웹앱자동등록',
+          vol,
+          'g',
+          vol ? (vol + 'g') : '',
+          pack
+        ]);
+      }
+    }
+
+    if (newRows.length > 0) {
+      masterSheet.getRange(masterSheet.getLastRow() + 1, 1, newRows.length, 10).setValues(newRows);
+    }
+  } catch (err) {
+    Logger.log('Auto master registration error: ' + err.toString());
+  }
+}
+
+/**
+ * [기능 4] 작업 이력 감사 로그 시트 기록 내부 헬퍼
  */
 function recordAuditLog_(ss, data) {
   var auditSheet = ss.getSheetByName('app_audit_log');
