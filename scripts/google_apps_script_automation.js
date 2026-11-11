@@ -25,8 +25,9 @@ function onOpen() {
     .addItem('🔧 3. sticker_work_log_source 인원수(#REF! 1,492건) 일괄 자동 복구', 'repairSourceWorkerCountRefErrors')
     .addItem('📦 4. 아이템 마스터 신규 49종 정보 일괄 자동 완성', 'repairItemMasterMissingData')
     .addItem('✨ 5. 마스터 오타/중복 품목(꼬깔콘콘옥수수 등) 일괄 정규화 및 통폐합', 'consolidateMasterItemDuplicates')
-    .addItem('📋 6. 시트 드롭다운/수식 일괄 복구', 'repairSheetFormulasAndValidation')
-    .addItem('🚀 7. 원천 DB로 신규 일지 전송 (J열 특이사항 포함)', 'syncWorkLogToSourceDB')
+    .addItem('📅 6. 외박스(box) 592행 등 누락 날짜 자동 완성', 'repairMissingBoxDates')
+    .addItem('📋 7. 시트 드롭다운/수식 일괄 복구', 'repairSheetFormulasAndValidation')
+    .addItem('🚀 8. 원천 DB로 신규 일지 전송 (J열 특이사항 포함)', 'syncWorkLogToSourceDB')
     .addToUi();
 }
 
@@ -2022,6 +2023,70 @@ function consolidateMasterItemDuplicates() {
     '   - 작성된 일지 정규화 치환: ' + logUpdatedRows + '건\n\n' +
     '모든 데이터가 표준 품목(꼬깔콘군옥수수(대) 등)으로 깔끔하게 일원화되었습니다.'
   );
+}
+
+/**
+ * [원클릭 복구] [스티커작업일지] 시트 내 외박스(box) 592행 등 누락 날짜 일괄 자동 완성
+ * - 과거 수기 입력 시 A열(일자)이 비어 있던 box 행들을 전수 조사하여,
+ *   해당 작업일 블록의 정확한 날짜를 자동으로 채워 넣음
+ */
+function repairMissingBoxDates() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var logSheet = ss.getSheetByName('스티커작업일지');
+  if (!logSheet) {
+    SpreadsheetApp.getUi().alert('⚠️ [스티커작업일지] 시트가 존재하지 않습니다.');
+    return;
+  }
+
+  var lastRow = logSheet.getLastRow();
+  if (lastRow < 5) {
+    SpreadsheetApp.getUi().alert('ℹ️ 검사할 일지 데이터가 없습니다.');
+    return;
+  }
+
+  var dateRange = logSheet.getRange(5, 1, lastRow - 4, 1);
+  var itemRange = logSheet.getRange(5, 4, lastRow - 4, 1);
+  var dateValues = dateRange.getValues();
+  var itemValues = itemRange.getValues();
+
+  var fixedCount = 0;
+  var currentDate = null;
+
+  for (var i = 0; i < dateValues.length; i++) {
+    var rawDate = dateValues[i][0];
+    var formattedDate = formatDateKey_(rawDate);
+    var itemStr = String(itemValues[i][0] || '').trim().toLowerCase();
+
+    if (formattedDate) {
+      currentDate = rawDate;
+    } else if (itemStr === 'box' || itemStr === '외박스') {
+      if (currentDate) {
+        dateValues[i][0] = currentDate;
+        fixedCount++;
+      } else {
+        // 혹시 위 행에 없더라도 아래 행('계' 행)에서 날짜 탐색
+        for (var j = i + 1; j < dateValues.length; j++) {
+          var nextDate = formatDateKey_(dateValues[j][0]);
+          if (nextDate) {
+            dateValues[i][0] = dateValues[j][0];
+            currentDate = dateValues[j][0];
+            fixedCount++;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if (fixedCount > 0) {
+    dateRange.setValues(dateValues);
+    SpreadsheetApp.getUi().alert(
+      '🎉 외박스(box) 누락 날짜 복구 완료!\n\n' +
+      '592행을 포함하여 날짜가 비어 있던 총 ' + fixedCount + '개 외박스(box) 행에 올바른 작업일자가 완벽하게 채워졌습니다.'
+    );
+  } else {
+    SpreadsheetApp.getUi().alert('ℹ️ 날짜가 누락된 외박스(box) 행이 없습니다. 모든 데이터가 정상입니다.');
+  }
 }
 
 function repairSheetFormulasAndValidation() {
