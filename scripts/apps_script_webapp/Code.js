@@ -1101,16 +1101,173 @@ function getEmbeddedHtml_() {
          '</body></html>';
 }
 
+/**
+ * [원클릭 동기화] [스티커작업일지] 시트의 신규 일지를 [sticker_work_log_source] 원천 DB로 일괄 전송
+ * - 스티커작업일지에만 기재되어 있고 원천 DB에 누락된 날짜(예: 11월 9일, 11월 10일 등)의 모든 품목 실적을 자동 추출
+ * - 당일 '계' 행의 인원수를 각 품목에 자동 매핑
+ * - 14개 정규 DB 컬럼으로 변환하여 sticker_work_log_source 시트에 일괄 적재
+ * - Streamlit 대시보드(wooseong.streamlit.app) 실시간 동기화 지원
+ */
 function syncWorkLogToSourceDB() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var logSheet = ss.getSheetByName('스티커작업일지');
   var dbSheet = ss.getSheetByName('sticker_work_log_source');
-  if (!logSheet || !dbSheet) return;
+
+  if (!logSheet) {
+    SpreadsheetApp.getUi().alert('⚠️ [스티커작업일지] 시트가 존재하지 않습니다.');
+    return;
+  }
+  if (!dbSheet) {
+    SpreadsheetApp.getUi().alert('⚠️ [sticker_work_log_source] 시트가 존재하지 않습니다.');
+    return;
+  }
 
   var lastLogRow = logSheet.getLastRow();
-  if (lastLogRow < 4) return;
+  if (lastLogRow < 5) {
+    SpreadsheetApp.getUi().alert('ℹ️ 동기화할 일지 데이터가 없습니다.');
+    return;
+  }
 
-  SpreadsheetApp.getUi().alert('동기화 검사가 완료되었습니다.');
+  // 1. 원천 DB(sticker_work_log_source) 기존 등록 내역 키 맵 구성
+  var lastDbRow = dbSheet.getLastRow();
+  var existingDbKeys = {};
+  var existingDates = {};
+
+  if (lastDbRow >= 2) {
+    var dbRange = dbSheet.getRange(2, 4, lastDbRow - 1, 4).getValues();
+    for (var d = 0; d < dbRange.length; d++) {
+      var dDate = formatDateKey_(dbRange[d][0]);
+      var dLine = String(dbRange[d][2] || '').trim();
+      var dItem = String(dbRange[d][3] || '').trim();
+      if (dDate) {
+        existingDates[dDate] = true;
+        if (dLine && dItem) {
+          existingDbKeys[dDate + '#' + dLine + '#' + dItem] = true;
+        }
+      }
+    }
+  }
+
+  // 2. [스티커작업일지] 데이터 전수 조사 및 일자별 블록 파싱
+  var logData = logSheet.getRange(5, 1, lastLogRow - 4, 10).getValues();
+
+  var daysBlocks = [];
+  var currentBlock = null;
+
+  for (var r = 0; r < logData.length; r++) {
+    var rawDate = logData[r][0];
+    var formattedDate = formatDateKey_(rawDate);
+    var workerCell = String(logData[r][1] || '').trim();
+    var lineNoCell = logData[r][2];
+    var itemName = String(logData[r][3] || '').trim();
+    var volume = logData[r][4];
+    var packQty = logData[r][5];
+    var workQty = logData[r][6];
+    var stickerQty = logData[r][7];
+    var remark = String(logData[r][8] || '').trim();
+    var fieldNote = String(logData[r][9] || '').trim();
+
+    if (formattedDate) {
+      if (!currentBlock || currentBlock.date !== formattedDate) {
+        if (currentBlock) {
+          daysBlocks.push(currentBlock);
+        }
+        currentBlock = {
+          date: formattedDate,
+          workerCount: 11,
+          items: []
+        };
+      }
+    }
+
+    if (!currentBlock) continue;
+
+    if (itemName === '계') {
+      var wm = workerCell.match(/(\d+)/);
+      if (wm) {
+        currentBlock.workerCount = parseInt(wm[1], 10);
+      }
+    } else if (itemName && itemName !== '합계' && itemName.indexOf('월별합계') === -1 && itemName.indexOf('근무일수') === -1) {
+      currentBlock.items.push({
+        lineNo: parseInt(lineNoCell) || (currentBlock.items.length + 1),
+        itemName: itemName,
+        volume: volume !== '' && volume !== null ? String(volume).trim() : '',
+        packQty: parseInt(String(packQty).replace(/,/g, '')) || 0,
+        workQty: parseInt(String(workQty).replace(/,/g, '')) || 0,
+        stickerQty: parseInt(String(stickerQty).replace(/,/g, '')) || 0,
+        remark: remark,
+        fieldNote: fieldNote
+      });
+    }
+  }
+
+  if (currentBlock) {
+    daysBlocks.push(currentBlock);
+  }
+
+  // 3. 원천 DB에 없는 신규 품목 행 생성
+  var newDbRows = [];
+  var syncedDates = [];
+
+  for (var b = 0; b < daysBlocks.length; b++) {
+    var blk = daysBlocks[b];
+    var blkDate = blk.date;
+    var blkMonth = blkDate.substring(0, 7);
+    var blkWorkers = blk.workerCount;
+    var hasNewItemInDate = false;
+
+    for (var k = 0; k < blk.items.length; k++) {
+      var it = blk.items[k];
+      var compositeKey = blkDate + '#' + it.lineNo + '#' + it.itemName;
+
+      // 이미 원천 DB에 등록된 항목은 건너뜀
+      if (existingDbKeys[compositeKey]) {
+        continue;
+      }
+
+      var noteText = it.fieldNote ? ('스마트일지동기화: ' + it.fieldNote) : '구글시트 자동 동기화';
+
+      newDbRows.push([
+        'GoogleSheet_Live_Sync',
+        1,
+        blkMonth,
+        blkDate,
+        blkWorkers,
+        it.lineNo,
+        it.itemName,
+        it.volume,
+        it.packQty,
+        it.workQty,
+        it.stickerQty,
+        it.remark,
+        true,
+        noteText
+      ]);
+
+      hasNewItemInDate = true;
+    }
+
+    if (hasNewItemInDate && syncedDates.indexOf(blkDate) === -1) {
+      syncedDates.push(blkDate);
+    }
+  }
+
+  // 4. 원천 DB 적재 및 결과 알림
+  if (newDbRows.length > 0) {
+    var appendRowStart = dbSheet.getLastRow() + 1;
+    dbSheet.getRange(appendRowStart, 1, newDbRows.length, 14).setValues(newDbRows);
+
+    SpreadsheetApp.getUi().alert(
+      '🎉 원천 DB(sticker_work_log_source) 동기화 완료!\n\n' +
+      '총 ' + newDbRows.length + '건의 신규 실적 데이터가 원천 DB로 성공적으로 전송되었습니다.\n\n' +
+      '동기화된 일자: ' + syncedDates.join(', ') + '\n\n' +
+      '이제 Streamlit 대시보드(wooseong.streamlit.app)에서 [실시간 동기화]를 누르시면 ' + syncedDates[syncedDates.length - 1] + '까지 실시간 반영됩니다!'
+    );
+  } else {
+    SpreadsheetApp.getUi().alert(
+      'ℹ️ 모든 일지 데이터가 이미 원천 DB(sticker_work_log_source)에 동기화되어 있습니다.'
+    );
+  }
 }
 
 /**
