@@ -2026,9 +2026,10 @@ function consolidateMasterItemDuplicates() {
 }
 
 /**
- * [원클릭 복구] [스티커작업일지] 시트 내 외박스(box) 592행 등 누락 날짜 일괄 자동 완성
+ * [원클릭 복구] [스티커작업일지] 시트 내 외박스(box) 592행 등 누락 날짜 자동 완성 (yyyy-m-d 하이픈 서식 통일)
  * - 과거 수기 입력 시 A열(일자)이 비어 있던 box 행들을 전수 조사하여,
- *   해당 작업일 블록의 정확한 날짜를 자동으로 채워 넣음
+ *   해당 작업일 블록의 정확한 날짜를 '2026-6-29' 하이픈 형식으로 자동 채워 넣음
+ * - A열 전체 서식을 'yyyy-m-d'로 통일하여 점(.) 표기(2026.6.29)를 하이픈(-) 표기(2026-6-29)로 일괄 변환
  */
 function repairMissingBoxDates() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -2050,26 +2051,40 @@ function repairMissingBoxDates() {
   var itemValues = itemRange.getValues();
 
   var fixedCount = 0;
-  var currentDate = null;
+  var currentDateObj = null;
+
+  function parseDate_(val) {
+    if (!val) return null;
+    if (Object.prototype.toString.call(val) === '[object Date]') {
+      return val;
+    }
+    var s = String(val).trim();
+    var m = s.match(/(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+    if (m) {
+      return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+    }
+    return null;
+  }
 
   for (var i = 0; i < dateValues.length; i++) {
     var rawDate = dateValues[i][0];
-    var formattedDate = formatDateKey_(rawDate);
+    var dObj = parseDate_(rawDate);
     var itemStr = String(itemValues[i][0] || '').trim().toLowerCase();
 
-    if (formattedDate) {
-      currentDate = rawDate;
+    if (dObj) {
+      currentDateObj = dObj;
+      dateValues[i][0] = dObj;
     } else if (itemStr === 'box' || itemStr === '외박스') {
-      if (currentDate) {
-        dateValues[i][0] = currentDate;
+      if (currentDateObj) {
+        dateValues[i][0] = currentDateObj;
         fixedCount++;
       } else {
         // 혹시 위 행에 없더라도 아래 행('계' 행)에서 날짜 탐색
         for (var j = i + 1; j < dateValues.length; j++) {
-          var nextDate = formatDateKey_(dateValues[j][0]);
-          if (nextDate) {
-            dateValues[i][0] = dateValues[j][0];
-            currentDate = dateValues[j][0];
+          var nextDObj = parseDate_(dateValues[j][0]);
+          if (nextDObj) {
+            dateValues[i][0] = nextDObj;
+            currentDateObj = nextDObj;
             fixedCount++;
             break;
           }
@@ -2078,15 +2093,14 @@ function repairMissingBoxDates() {
     }
   }
 
-  if (fixedCount > 0) {
-    dateRange.setValues(dateValues);
-    SpreadsheetApp.getUi().alert(
-      '🎉 외박스(box) 누락 날짜 복구 완료!\n\n' +
-      '592행을 포함하여 날짜가 비어 있던 총 ' + fixedCount + '개 외박스(box) 행에 올바른 작업일자가 완벽하게 채워졌습니다.'
-    );
-  } else {
-    SpreadsheetApp.getUi().alert('ℹ️ 날짜가 누락된 외박스(box) 행이 없습니다. 모든 데이터가 정상입니다.');
-  }
+  dateRange.setValues(dateValues);
+  dateRange.setNumberFormat('yyyy-m-d');
+
+  SpreadsheetApp.getUi().alert(
+    '🎉 외박스(box) 날짜 및 하이픈(-) 서식 복구 완료!\n\n' +
+    '1. 592행을 포함하여 날짜가 비어 있던 ' + (fixedCount > 0 ? fixedCount + '개' : '모든') + ' 외박스(box) 행에 작업일자가 채워졌습니다.\n' +
+    '2. A열 전체 날짜 서식을 [yyyy-m-d]로 일괄 적용하여 2026.6.29 형태가 아닌 2026-6-29 하이픈(-) 표준 형태로 완벽하게 통일되었습니다.'
+  );
 }
 
 function repairSheetFormulasAndValidation() {
