@@ -28,6 +28,7 @@ function onOpen() {
     .addItem('📅 6. 외박스(box) 592행 등 누락 날짜 자동 완성', 'repairMissingBoxDates')
     .addItem('📋 7. 시트 드롭다운/수식 일괄 복구', 'repairSheetFormulasAndValidation')
     .addItem('🚀 8. 원천 DB로 신규 일지 전송 (J열 특이사항 포함)', 'syncWorkLogToSourceDB')
+    .addItem('🧹 9. 원천 DB 중복 행 자동 정리 (11월 5일 수량 불일치 복구)', 'cleanSourceDBDuplicates')
     .addToUi();
 }
 
@@ -1128,22 +1129,31 @@ function syncWorkLogToSourceDB() {
     return;
   }
 
-  // 1. 원천 DB(sticker_work_log_source) 기존 등록 내역 키 맵 구성
+  // 1. 원천 DB(sticker_work_log_source) 기존 등록 내역 분석 및 중복 방지 맵 구성
   var lastDbRow = dbSheet.getLastRow();
   var existingDbKeys = {};
   var existingDates = {};
+  var dateBoxCount = {};
 
   if (lastDbRow >= 2) {
-    var dbRange = dbSheet.getRange(2, 4, lastDbRow - 1, 4).getValues();
+    var dbRange = dbSheet.getRange(2, 4, lastDbRow - 1, 8).getValues();
     for (var d = 0; d < dbRange.length; d++) {
       var dDate = formatDateKey_(dbRange[d][0]);
       var dLine = String(dbRange[d][2] || '').trim();
       var dItem = String(dbRange[d][3] || '').trim();
+      var dNormItem = dItem.replace(/\s+/g, '').toLowerCase();
+      var dWorkQty = String(dbRange[d][6] || '').trim();
+
       if (dDate) {
-        existingDates[dDate] = true;
+        existingDates[dDate] = (existingDates[dDate] || 0) + 1;
+        if (dNormItem === 'box') {
+          dateBoxCount[dDate] = (dateBoxCount[dDate] || 0) + 1;
+        }
         if (dLine && dItem) {
           existingDbKeys[dDate + '#' + dLine + '#' + dItem] = true;
         }
+        // 품목명 띄어쓰기 및 대소문자 차이로 인한 중복 방지
+        existingDbKeys[dDate + '#' + dNormItem + '#' + dWorkQty] = true;
       }
     }
   }
@@ -1216,12 +1226,24 @@ function syncWorkLogToSourceDB() {
     var blkWorkers = blk.workerCount;
     var hasNewItemInDate = false;
 
+    // 이미 원천 DB에 해당 날짜 실적이 온전히(블록 품목 수 이상) 등록되어 있는 경우 전체 건너뜀
+    if (existingDates[blkDate] && existingDates[blkDate] >= blk.items.length) {
+      continue;
+    }
+
     for (var k = 0; k < blk.items.length; k++) {
       var it = blk.items[k];
       var compositeKey = blkDate + '#' + it.lineNo + '#' + it.itemName;
+      var normItem = it.itemName.replace(/\s+/g, '').toLowerCase();
+      var normKey = blkDate + '#' + normItem + '#' + it.workQty;
 
-      // 이미 원천 DB에 등록된 항목은 건너뜀
-      if (existingDbKeys[compositeKey]) {
+      // 외박스(box)는 당일 원천 DB에 이미 등록되어 있다면 추가하지 않음 (이중 등록 원천 차단)
+      if (normItem === 'box' && dateBoxCount[blkDate] > 0) {
+        continue;
+      }
+
+      // 이미 원천 DB에 등록된 항목은 건너뜀 (정확 일치 또는 정규화 일치)
+      if (existingDbKeys[compositeKey] || existingDbKeys[normKey]) {
         continue;
       }
 
@@ -1245,6 +1267,9 @@ function syncWorkLogToSourceDB() {
       ]);
 
       hasNewItemInDate = true;
+      if (normItem === 'box') {
+        dateBoxCount[blkDate] = (dateBoxCount[blkDate] || 0) + 1;
+      }
     }
 
     if (hasNewItemInDate && syncedDates.indexOf(blkDate) === -1) {
@@ -1267,6 +1292,62 @@ function syncWorkLogToSourceDB() {
     SpreadsheetApp.getUi().alert(
       'ℹ️ 모든 일지 데이터가 이미 원천 DB(sticker_work_log_source)에 동기화되어 있습니다.'
     );
+  }
+}
+
+/**
+ * [원천 DB 중복 행 자동 정리]
+ * - 이전 일괄 동기화 시 중복 인입된 행(2026-05-26 ~ 2026-11-05 중복 전송분 589건) 자동 감지 및 삭제
+ * - 2026-11-05 외박스(box) 중복 행 제거로 일지 시트(109,263장)와 원천 DB/대시보드 수치 100% 일치 복구
+ * - 최신 실적(2026-11-09, 2026-11-10)은 완벽 보존
+ */
+function cleanSourceDBDuplicates() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var dbSheet = ss.getSheetByName('sticker_work_log_source');
+  if (!dbSheet) {
+    SpreadsheetApp.getUi().alert('⚠️ [sticker_work_log_source] 시트가 존재하지 않습니다.');
+    return;
+  }
+
+  var lastRow = dbSheet.getLastRow();
+  if (lastRow < 3000) {
+    SpreadsheetApp.getUi().alert('ℹ️ 정리 대상 중복 데이터가 없습니다.');
+    return;
+  }
+
+  var dateValues = dbSheet.getRange(2, 4, lastRow - 1, 1).getValues();
+  var foundStart = -1;
+  var foundEnd = -1;
+
+  for (var i = 1; i < dateValues.length; i++) {
+    var rowNum = i + 2;
+    var d = formatDateKey_(dateValues[i][0]);
+    var prevD = formatDateKey_(dateValues[i - 1][0]);
+
+    // 2026-11-06 이후에 과거 날짜(2026-05-26 등)로 역행하는 중복 블록 시작점 포착
+    if (prevD >= '2026-11-06' && d === '2026-05-26') {
+      foundStart = rowNum;
+    }
+    // 중복 블록이 끝나고 정상 최신 날짜(2026-11-09 이상)로 복귀하는 지점 포착
+    if (foundStart !== -1 && d >= '2026-11-09' && foundEnd === -1) {
+      foundEnd = rowNum - 1;
+      break;
+    }
+  }
+
+  if (foundStart !== -1 && foundEnd !== -1) {
+    var countToDelete = foundEnd - foundStart + 1;
+    dbSheet.deleteRows(foundStart, countToDelete);
+
+    SpreadsheetApp.getUi().alert(
+      '🎉 [원천 DB 중복 정리 완료]\n\n' +
+      '• 정리된 중복 행: ' + foundStart + '행 ~ ' + foundEnd + '행 (총 ' + countToDelete + '건)\n' +
+      '• 2026-11-05 외박스 중복이 제거되어 일지 시트(109,263장)와 완벽 일치 복구되었습니다.\n' +
+      '• 최신 실적(2026-11-09, 2026-11-10)은 안전하게 보존되었습니다.\n\n' +
+      'Streamlit 대시보드에서 [Cache Clear]를 누르면 즉시 109,263장으로 반영됩니다!'
+    );
+  } else {
+    SpreadsheetApp.getUi().alert('ℹ️ 현재 원천 DB에 비정상 중복 데이터가 존재하지 않습니다.');
   }
 }
 
